@@ -344,6 +344,20 @@ async fn forward_http_request(
     let (mut parts, body) = upstream_res.into_parts();
     inject_downstream_security_headers(&mut parts.headers, &state.security);
 
+    // If upstream returned 404 Not Found, feed anomalous probe to Layer 13 Threat Harvester
+    if state.security.enable_defense && parts.status == StatusCode::NOT_FOUND {
+        let path_only = full_path.split('?').next().unwrap_or(&full_path);
+        if let Some(promotion) = state.defense.record_anomalous_uri(path_only, client_ip) {
+            info!(
+                path = %promotion.path,
+                category = %promotion.category.name(),
+                distinct_subnets = promotion.distinct_subnets,
+                total_hits = promotion.total_hits,
+                "🛡️ [PROPYLEA-HARVESTER] Zero-day probe autonomously elevated to active perimeter trap!"
+            );
+        }
+    }
+
     state.telemetry.record(TelemetryRecord {
         timestamp_ms: current_time_ms(),
         client_ip: client_ip.to_string(),

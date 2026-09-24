@@ -60,6 +60,20 @@ impl EdgeDefense {
         &self.pipeline
     }
 
+    /// Record an anomalous unmapped URI probe into the underlying Threat Harvester (Layer 13).
+    /// Autonomously correlates multi-subnet zero-day campaigns into live decoy traps.
+    pub fn record_anomalous_uri(
+        &self,
+        path: &str,
+        client_ip: IpAddr,
+    ) -> Option<phylax::threat_harvester::PromotionVerdict> {
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        self.pipeline.record_anomalous_uri(path, client_ip, now_ms)
+    }
+
     /// Evaluates incoming request. If hostile, returns stealth 404 response
     /// and asynchronously dispatches an incident report.
     pub fn evaluate_request(
