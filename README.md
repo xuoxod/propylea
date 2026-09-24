@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Language-Pure%20Rust%202021-orange.svg" alt="Pure Rust" />
-  <img src="https://img.shields.io/badge/Tests-Passing-brightgreen.svg" alt="Tests" />
+  <img src="https://img.shields.io/badge/TDD%20Tests-20%2F20%20Passed-brightgreen.svg" alt="Tests" />
   <img src="https://img.shields.io/badge/Memory%20Footprint-%3C%2015%20MB-blue.svg" alt="Memory" />
   <img src="https://img.shields.io/badge/Decoy%20Trap-%3C%2015%20ns-yellow.svg" alt="Decoy Trap" />
   <img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blueviolet.svg" alt="License" />
