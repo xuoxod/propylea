@@ -1,0 +1,48 @@
+[package]
+name = "propylea"
+version = "0.1.0"
+edition = "2021"
+authors = ["Rick <xuoxod@gmail.com>", "Propylea Contributors"]
+license = "MIT OR Apache-2.0"
+description = "Sovereign ultra-low-memory L7 reverse proxy, multi-domain SNI TLS multiplexer & active perimeter defense gateway in pure Rust."
+repository = "https://github.com/xuoxod/propylea"
+readme = "README.md"
+keywords = ["reverse-proxy", "tls", "hyper", "waf", "security"]
+categories = ["web-programming::http-server", "network-programming"]
+
+[[bin]]
+name = "propylea"
+path = "src/main.rs"
+
+[lib]
+name = "propylea"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { version = "1.38", features = ["full"] }
+tokio-rustls = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["std", "ring"] }
+rustls-pki-types = "1.0"
+rustls-pemfile = "2.1"
+hyper = { version = "1.4", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+http-body-util = "0.1"
+bytes = "1.6"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4.5", features = ["derive", "env"] }
+futures-util = "0.3"
+parking_lot = "0.12"
+libc = "0.2"
+phylax = { path = "../phylax", default-features = false, features = ["abuse-reporting"] }
+
+[dev-dependencies]
+tokio = { version = "1.38", features = ["full", "test-util"] }
+rcgen = "0.13"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tokio-tungstenite = "0.23"
+tempfile = "3.10"

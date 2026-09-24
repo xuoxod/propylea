@@ -1,0 +1,57 @@
+# 🦀 Propylea Configuration File
+# Sovereign ultra-low-memory L7 reverse proxy & perimeter defense gateway.
+# For full documentation: https://github.com/xuoxod/propylea/blob/main/docs/CONFIGURATION.md
+
+[server]
+# Port 80 HTTP-to-HTTPS instant 301 redirector
+http_bind = "0.0.0.0:80"
+
+# Port 443 HTTPS reverse proxy listener
+https_bind = "0.0.0.0:443"
+
+[security]
+# Active edge perimeter defense (drops scanners & decoy path probes at zero CPU cost)
+enable_defense = true
+
+# Optional: Automatic incident reporting to AbuseIPDB (free tier safe with internal cooldown)
+# abuseipdb_api_key = "YOUR_ABUSEIPDB_API_KEY"
+
+# Optional: Webhook alerting for SIEM / Discord / Slack
+# webhook_url = "https://hooks.slack.com/services/..."
+
+# Obfuscated Server header returned downstream to confound fingerprinting
+server_banner = "Aegis-Apollo-Proxy-Service/4.12"
+
+# Enable HTTP Strict Transport Security (HSTS)
+hsts = true
+
+# Clickjacking mitigation header: DENY or SAMEORIGIN
+frame_options = "DENY"
+
+[maintenance]
+# Seconds between autonomous memory vacuuming passes (releases unused heap to OS)
+hygiene_interval_secs = 300
+
+# Retained in-memory telemetry records in the ring buffer
+max_telemetry_records = 10000
+
+# Aggressively invoke malloc_trim to keep memory footprint < 15MB
+memory_vacuum = true
+
+# -----------------------------------------------------------------------------
+# Upstream Host & SNI Routes
+# -----------------------------------------------------------------------------
+
+[[routes]]
+domains = ["example.com", "www.example.com"]
+upstream = "127.0.0.1:8080"
+cert = "/etc/letsencrypt/live/example.com/fullchain.pem"
+key = "/etc/letsencrypt/live/example.com/privkey.pem"
+websocket = true
+
+[[routes]]
+domains = ["api.example.com"]
+upstream = "127.0.0.1:8081"
+cert = "/etc/letsencrypt/live/api.example.com/fullchain.pem"
+key = "/etc/letsencrypt/live/api.example.com/privkey.pem"
+websocket = false
