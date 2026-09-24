@@ -30,7 +30,7 @@ Modern web infrastructure is plagued by two persistent problems:
 
 **Propylea solves both:**
 * **$< 15\text{ MB}$ Constant RSS**: Zero garbage collector, zero C runtime dependencies, and an autonomous memory vacuum that periodically returns unused heap pages directly to the Linux kernel via `libc::malloc_trim`.
-* **Nanosecond Perimeter Defense**: Evaluates incoming request paths against an in-memory threat trie in **$< 15\text{ ns}$**. Automated crawlers and vulnerability sprayers are served stealth `404 Not Found` responses before they ever reach your upstream services.
+* **Nanosecond Perimeter Defense**: Powered by the sovereign [`phylax`](https://github.com/xuoxod/phylax) defense pipeline, Propylea evaluates incoming request paths against an in-memory threat trie in **$< 15\text{ ns}$**. Automated crawlers and vulnerability sprayers are served stealth `404 Not Found` responses before they ever reach your upstream services.
 * **Automated Threat Intelligence**: Seamlessly and asynchronously dispatches forensic dossiers to **AbuseIPDB** and custom webhooks (Slack, Discord, SIEM) with built-in token-bucket rate limiting to stay safely within free-tier quotas.
 
 ---
