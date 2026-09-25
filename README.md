@@ -75,6 +75,10 @@ flowchart TD
     HeavyIngress -.->|"Emancipated by"| PropyleaFrontier
 ```
 
+### 🧬 Systems Provenance: Disciplined Engineering & Frontier Pair Programming
+
+`propylea` demonstrates what happens when human architectural discipline meets collaborative AI systems engineering. Rather than accepting the industry standard of multi-megabyte runtimes and garbage-collection pauses, the gateway was designed from first principles with an AI thinking partner to enforce absolute resource restraint: periodic `libc::malloc_trim` kernel page recovery, zero-allocation redirects, and $<15\text{ns}$ threat deflection. It stands as living proof that an independent developer pairing with advanced intelligence can forge infrastructure that outclasses bloated corporate alternatives.
+
 ---
 
 ## 🛡️ Live Edge Defense in Action
