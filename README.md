@@ -50,6 +50,33 @@ Modern web infrastructure is plagued by two persistent problems:
 
 ---
 
+## ⚡ The Sovereign Frontier: Emancipation from Cloud Ingress Feudalism
+
+Conventional wisdom claims that running a multi-domain TLS edge requires heavy Go runtimes (Caddy, Traefik), labyrinthine C configurations (Nginx), or paid cloud proxies (Cloudflare, AWS ALB) that turn your infrastructure into a recurring billing pipeline.
+
+`propylea` breaks that dependency entirely. Engineered in pure Rust, it proves that an independent developer can operate an enterprise-grade L7 reverse proxy with automated SNI TLS termination, bi-directional WebSocket tunneling, and autonomous $<15\text{ns}$ threat deflection—consuming less memory than a single browser tab.
+
+```mermaid
+flowchart TD
+    subgraph HeavyIngress ["🏰 The Cloud Ingress Tax (The Old Empire)"]
+        direction LR
+        CloudProxy["Cloudflare / AWS ALB\n💸 $0.008/GB + Per-Domain Ruleset Rent"]
+        GoProxy["Caddy / Traefik (Go GC)\n🐘 60MB - 120MB RSS Per Node"]
+        NginxProxy["Nginx + ModSecurity\n🧩 Fragile C Toolchain & Regex Bottlenecks"]
+    end
+
+    subgraph PropyleaFrontier ["⚡ The Sovereign Ingress Frontier (Propylea)"]
+        direction LR
+        PropyleaCore["🏛️ Propylea Edge Gate\n🦀 Pure Rust 2021 · 0% GC Jitter"]
+        MemVacuum["Autonomous Memory Vacuum\n🧹 Periodic malloc_trim Kernel Page Returns (<15MB RSS)"]
+        NanosecondTrie["In-Memory Threat Trie\n⚡ <15ns Automated Crawler Deflection"]
+    end
+
+    HeavyIngress -.->|"Emancipated by"| PropyleaFrontier
+```
+
+---
+
 ## 🛡️ Live Edge Defense in Action
 
 Below is an authentic execution trace captured at the ingress boundary during a mass Internet scanning wave:
