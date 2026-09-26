@@ -1,6 +1,6 @@
 [package]
 name = "propylea"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Rick <xuoxod@gmail.com>", "Propylea Contributors"]
 license = "MIT OR Apache-2.0"
@@ -38,7 +38,7 @@ clap = { version = "4.5", features = ["derive", "env"] }
 futures-util = "0.3"
 parking_lot = "0.12"
 libc = "0.2"
-phylax = { version = "0.1.0", path = "../phylax", default-features = false, features = ["abuse-reporting"] }
+phylax = { version = "0.2.0", path = "../phylax", default-features = false, features = ["abuse-reporting"] }
 
 [dev-dependencies]
 tokio = { version = "1.38", features = ["full", "test-util"] }
