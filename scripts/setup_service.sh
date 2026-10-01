@@ -5,7 +5,9 @@
 # ==============================================================================
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "$PWD")"
+SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
+[ -z "$SCRIPT_SOURCE" ] && SCRIPT_SOURCE="$0"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" 2>/dev/null && pwd || echo "$PWD")"
 WORKSPACE_ROOT="${SCRIPT_DIR}/.."
 BIN_DEST="/usr/local/bin/propylea"
 CONF_DIR="/etc/propylea"
