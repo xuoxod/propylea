@@ -68,15 +68,42 @@ if [ "$(id -u)" -ne 0 ]; then
     fi
 fi
 
-# 1. Build release binary if not present
-if [ ! -f "${WORKSPACE_ROOT}/target/release/propylea" ]; then
+# 1. Discover, compile, or fetch release binary
+SOURCE_BIN=""
+if [ -f "${WORKSPACE_ROOT}/target/release/propylea" ]; then
+    SOURCE_BIN="${WORKSPACE_ROOT}/target/release/propylea"
+elif [ -f "${WORKSPACE_ROOT}/propylea" ]; then
+    SOURCE_BIN="${WORKSPACE_ROOT}/propylea"
+elif [ -f "./propylea" ]; then
+    SOURCE_BIN="./propylea"
+elif [ -f "${WORKSPACE_ROOT}/target/debug/propylea" ]; then
+    SOURCE_BIN="${WORKSPACE_ROOT}/target/debug/propylea"
+elif command -v cargo >/dev/null 2>&1; then
     echo "🔨 Compiling optimized release binary with cargo..."
     (cd "${WORKSPACE_ROOT}" && cargo build --release)
+    SOURCE_BIN="${WORKSPACE_ROOT}/target/release/propylea"
+else
+    echo "🌐 No local binary or Cargo compiler found. Fetching prebuilt release from GitHub..."
+    ARCH="$(uname -m)"
+    OS="$(uname -s)"
+    if [ "$OS" = "Linux" ] && [ "$ARCH" = "x86_64" ]; then
+        TMP_DIR="$(mktemp -d)"
+        TAG=$(curl -sSLI -o /dev/null -w '%{url_effective}' https://github.com/xuoxod/propylea/releases/latest 2>/dev/null | awk -F'/' '{print $NF}')
+        TAG="${TAG:-v0.2.1}"
+        RELEASE_URL="https://github.com/xuoxod/propylea/releases/download/${TAG}/propylea-${TAG}-x86_64-unknown-linux-gnu.tar.gz"
+        echo "   Downloading: ${RELEASE_URL}"
+        curl -sSLf "${RELEASE_URL}" -o "${TMP_DIR}/propylea.tar.gz"
+        tar -xzf "${TMP_DIR}/propylea.tar.gz" -C "${TMP_DIR}"
+        SOURCE_BIN="${TMP_DIR}/propylea"
+    else
+        echo "❌ Error: Could not locate propylea binary and Cargo is not installed."
+        exit 1
+    fi
 fi
 
 # 2. Install binary to system path
-echo "📦 Installing binary to ${BIN_DEST}..."
-${SUDO} install -m 755 "${WORKSPACE_ROOT}/target/release/propylea" "${BIN_DEST}"
+echo "📦 Installing binary from ${SOURCE_BIN} to ${BIN_DEST}..."
+${SUDO} install -m 755 "${SOURCE_BIN}" "${BIN_DEST}"
 
 # 3. Grant port 80/443 binding capability
 echo "🔒 Granting cap_net_bind_service capability..."

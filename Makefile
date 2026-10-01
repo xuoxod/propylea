@@ -34,7 +34,10 @@ test:
 	cargo test
 
 check:
-	cargo run -- check --config propylea.example.toml
+	cargo run -- check --syntax-only --config propylea.example.toml
+
+check-prod:
+	cargo run -- check --config /etc/propylea/propylea.toml
 
 install:
 	@echo "📦 Installing Propylea binary to $(BINDIR)/propylea..."
@@ -62,26 +65,25 @@ install:
 service: install
 	@echo "⚙️  Registering Propylea systemd service..."
 	@mkdir -p $(SYSTEMDDIR)
-	@cat << 'EOF' > $(SYSTEMDDIR)/propylea.service
-[Unit]
-Description=Propylea Sovereign L7 Reverse Proxy & Perimeter Defense
-After=network.target network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=$(BINDIR)/propylea serve --config $(CONFDIR)/propylea.toml
-ExecReload=/bin/kill -HUP $$MAINPID
-Restart=always
-RestartSec=3
-LimitNOFILE=65536
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
+	@printf '%s\n' \
+		"[Unit]" \
+		"Description=Propylea Sovereign L7 Reverse Proxy & Perimeter Defense" \
+		"After=network.target network-online.target" \
+		"Wants=network-online.target" \
+		"" \
+		"[Service]" \
+		"Type=simple" \
+		"User=root" \
+		"ExecStart=$(BINDIR)/propylea serve --config $(CONFDIR)/propylea.toml" \
+		"ExecReload=/bin/kill -HUP \$$MAINPID" \
+		"Restart=always" \
+		"RestartSec=3" \
+		"LimitNOFILE=65536" \
+		"StandardOutput=journal" \
+		"StandardError=journal" \
+		"" \
+		"[Install]" \
+		"WantedBy=multi-user.target" > $(SYSTEMDDIR)/propylea.service
 	@systemctl daemon-reload
 	@echo "✅ Systemd service installed. Start with: sudo systemctl enable --now propylea"
 

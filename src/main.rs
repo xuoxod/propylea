@@ -46,6 +46,10 @@ enum Commands {
     Check {
         #[arg(short, long, default_value = "propylea.toml")]
         config: PathBuf,
+
+        /// Validate configuration syntax and schema only without requiring TLS files on disk
+        #[arg(long)]
+        syntax_only: bool,
     },
 }
 
@@ -59,22 +63,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let cli = Cli::parse();
-    let config_path = match &cli.command {
-        Some(Commands::Serve { config }) => config.clone(),
-        Some(Commands::Check { config }) => config.clone(),
-        None => cli.config,
+    let (config_path, syntax_only) = match &cli.command {
+        Some(Commands::Serve { config }) => (config.clone(), false),
+        Some(Commands::Check { config, syntax_only }) => (config.clone(), *syntax_only),
+        None => (cli.config, false),
     };
 
     let is_check_only = matches!(cli.command, Some(Commands::Check { .. }));
 
     if is_check_only {
-        return run_check(config_path);
+        return run_check(config_path, syntax_only);
     }
 
     run_serve(config_path).await
 }
 
-fn run_check(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn run_check(path: PathBuf, syntax_only: bool) -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", BANNER);
     info!("🔍 Validating Propylea configuration at '{}'...", path.display());
 
@@ -88,28 +92,39 @@ fn run_check(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     info!("  • Verifying {} configured route(s)...", config.routes.len());
 
     for (i, route) in config.routes.iter().enumerate() {
-        let certs = load_certs(&route.cert).map_err(|e| {
-            format!("Route[{}] ({:?}): cert error: {}", i, route.domains, e)
-        })?;
-        let _key = load_private_key(&route.key).map_err(|e| {
-            format!("Route[{}] ({:?}): key error: {}", i, route.domains, e)
-        })?;
-        info!(
-            "    [{}] Domains: {:?} -> {} (TLS certs verified: {} certificates loaded)",
-            i,
-            route.domains,
-            route.upstream,
-            certs.len()
-        );
+        if syntax_only {
+            info!(
+                "    [{}] Domains: {:?} -> {} (Syntax valid, TLS cert: '{}', key: '{}')",
+                i,
+                route.domains,
+                route.upstream,
+                route.cert.display(),
+                route.key.display()
+            );
+        } else {
+            let certs = load_certs(&route.cert).map_err(|e| {
+                format!("Route[{}] ({:?}): cert error: {}", i, route.domains, e)
+            })?;
+            let _key = load_private_key(&route.key).map_err(|e| {
+                format!("Route[{}] ({:?}): key error: {}", i, route.domains, e)
+            })?;
+            info!(
+                "    [{}] Domains: {:?} -> {} (TLS certs verified: {} certificates loaded)",
+                i,
+                route.domains,
+                route.upstream,
+                certs.len()
+            );
+        }
     }
 
-    println!("\n✅ [PROPYLEA] Configuration is strictly valid and verified.\n");
+    println!("\n✅ [PROPYLEA] Configuration is valid and verified.\n");
     Ok(())
 }
 
 async fn run_serve(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", BANNER);
-    info!("🚀 Initializing Propylea Sovereign Reverse Proxy v0.1.0...");
+    info!("🚀 Initializing Propylea Sovereign Reverse Proxy v{}...", env!("CARGO_PKG_VERSION"));
 
     let config = match PropyleaConfig::load_from_file(&path) {
         Ok(c) => c,
