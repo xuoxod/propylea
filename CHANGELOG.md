@@ -34,6 +34,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Operator Troubleshooting & Diagnostic Runbook (`docs/TROUBLESHOOTING.md`)**:
   - Published 30-second triage checklist for operators and engineers.
   - Added resolution workflows for `502 Bad Gateway`, port `80`/`443` address collisions (`os error 98`), low-port permissions (`cap_net_bind_service`), TLS certificate mismatch, and WebSocket 1006 drops.
+* **Developer Zero-Friction & Clean-Room Ergonomics**:
+  - Added `--syntax-only` flag to `propylea check` enabling instant schema validation of `propylea.example.toml` on fresh repository clones without requiring pre-installed Let's Encrypt certificates (`make check` passes out-of-the-box).
+  - Fixed systemd service recipe in `Makefile` replacing fragile shell heredocs with robust `printf` escaping.
+  - Enhanced `scripts/setup_service.sh` with multi-tier discovery: automatically detects local target binaries, compiles via Cargo if present, or downloads prebuilt releases from GitHub for virgin OS environments.
+* **Dynamic Clap CLI Versioning**:
+  - Replaced static string literals with dynamic `#[command(version)]` linking directly to `Cargo.toml`.
 * **Architecture Mental Model in README**:
   - Integrated the Fortress Mental Model directly into the primary `README.md` to eliminate confusion for external developers and operators.
 
