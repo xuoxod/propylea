@@ -6,9 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [0.2.1] - 2026-10-01 (Sovereign Defense Topology & Diagnostic Runbook)
+## [0.2.1] - 2026-10-01 (Fleet Ingress Unification & Sovereign Lockdown)
 
-### 🌟 Added
+### 🌟 Added & Production Milestones
+* **Fleet-Wide Production Lockdown (Node 1 & Node 2)**:
+  - **Node 2 (`sfu.rmediatech.com`)**: Deployed `propylea` on ports 80/443 with full-duplex WebSocket tunneling to `livekit-server` (:7880). Banished and purged legacy Nginx packages and remnants completely (`8.1 MB` RSS vs legacy `28.4 MB`). Verified 13/13 health checks.
+  - **Node 1 (`rmediatech.com`, `matrix.rmediatech.com`)**: Migrated edge reverse proxying from `conduit-proxy` to `propylea` on ports 80/443 with multi-domain TLS multiplexing to `rmediatech` (:8081) and `matrix-server` (:8082). Banished and purged legacy Caddy packages and remnants completely (`8.0 MB` RSS).
+  - **Fleet Ingress Parity**: 100% of public edge gateways across the sovereign fleet now run unified `propylea` binaries with nanosecond Phylax threat trie interception and automated `libc::malloc_trim` memory hygiene.
 * **Sovereign Defense Topology Blueprint (`docs/DEFENSE_TOPOLOGY.md`)**:
   - Authored comprehensive Layman-to-Architect mental model detailing the 5 concentric security rings (`Bastion` $\to$ `Propylea` $\to$ `Phylax` $\to$ `Slow-Shield` $\to$ Applications $\to$ `Sovereign-Ledger`).
   - Added Definitive Disambiguation Matrix clarifying strict One-Job-Principle (OJP) boundaries across all sovereign crates.
