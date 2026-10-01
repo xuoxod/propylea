@@ -78,6 +78,9 @@ pub struct SecurityConfig {
     /// Optional generic webhook URL (Slack, Discord, SIEM) for security alerts
     #[serde(default)]
     pub webhook_url: Option<String>,
+    /// Optional RFC 5424 Syslog / CEF (Common Event Format) logging
+    #[serde(default)]
+    pub syslog_cef: bool,
     /// Obfuscated Server header (defaults to Aegis-Apollo-Proxy-Service/4.12)
     #[serde(default = "default_server_banner")]
     pub server_banner: String,
@@ -107,6 +110,7 @@ impl Default for SecurityConfig {
             enable_defense: true,
             abuseipdb_api_key: None,
             webhook_url: None,
+            syslog_cef: false,
             server_banner: default_server_banner(),
             hsts: true,
             frame_options: default_frame_options(),

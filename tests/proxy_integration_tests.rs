@@ -122,9 +122,11 @@ async fn test_https_reverse_proxy_end_to_end_and_defense_trap() {
             enable_defense: true,
             abuseipdb_api_key: None,
             webhook_url: None,
+            syslog_cef: false,
             server_banner: "Test-Propylea-Edge".into(),
             hsts: true,
             frame_options: "DENY".into(),
+            ..Default::default()
         },
         maintenance: MaintenanceSettings::default(),
         routes: vec![route],

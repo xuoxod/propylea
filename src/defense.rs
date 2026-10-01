@@ -32,13 +32,14 @@ impl EdgeDefense {
             .enable_timing(false);
 
         if config.enable_defense {
-            if config.abuseipdb_api_key.is_some() || config.webhook_url.is_some() {
+            if config.abuseipdb_api_key.is_some() || config.webhook_url.is_some() || config.syslog_cef {
                 let informant_config = InformantConfig {
                     enabled: true,
                     dry_run: false,
                     api_key: config.abuseipdb_api_key.clone(),
                     webhook_url: config.webhook_url.clone(),
                     webhook_auth: None,
+                    syslog_cef: config.syslog_cef,
                     cooldown: Default::default(),
                 };
                 builder = builder.with_abuse_reporting(informant_config);

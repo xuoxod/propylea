@@ -87,9 +87,11 @@ async fn test_adversarial_vulnerability_scanner_battery() {
             enable_defense: true,
             abuseipdb_api_key: None,
             webhook_url: None,
+            syslog_cef: false,
             server_banner: "Aegis-Boundary/3.0".into(),
             hsts: true,
             frame_options: "DENY".into(),
+            ..Default::default()
         },
         maintenance: MaintenanceSettings::default(),
         routes: vec![route],

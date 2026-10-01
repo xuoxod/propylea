@@ -40,6 +40,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Enhanced `scripts/setup_service.sh` with multi-tier discovery: automatically detects local target binaries, compiles via Cargo if present, or downloads prebuilt releases from GitHub for virgin OS environments.
 * **Dynamic Clap CLI Versioning**:
   - Replaced static string literals with dynamic `#[command(version)]` linking directly to `Cargo.toml`.
+* **RFC 5424 Syslog / CEF (Common Event Format) SIEM Ingress (`src/config.rs`, `src/defense.rs`)**:
+  - Added `syslog_cef: bool` configuration toggle to `[security]` in `propylea.toml`, passing through to `phylax::InformantConfig` for 100% air-gapped local SIEM audit logging without external HTTP egress.
+  - Hardened integration test suite with `..Default::default()` resilience against future security configuration expansions.
+* **Cross-Platform Parity & Windows Verification**:
+  - Validated native compilation on `x86_64-pc-windows-gnu` generating pure PE32+ 64-bit binaries.
+  - Executed automated configuration validation and version verification on clean-room Windows Server 2022 KVM VM (`citadel-win1`).
 * **Architecture Mental Model in README**:
   - Integrated the Fortress Mental Model directly into the primary `README.md` to eliminate confusion for external developers and operators.
 
