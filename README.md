@@ -31,7 +31,8 @@ Modern web infrastructure is plagued by two persistent problems:
 **Propylea solves both:**
 * **$< 15\text{ MB}$ Constant RSS**: Zero garbage collector, zero C runtime dependencies, and an autonomous memory vacuum that periodically returns unused heap pages directly to the Linux kernel via `libc::malloc_trim`.
 * **Nanosecond Perimeter Defense**: Powered by the sovereign [`phylax`](https://github.com/xuoxod/phylax) defense pipeline, Propylea evaluates incoming request paths against an in-memory threat trie in **$< 15\text{ ns}$**. Automated crawlers and vulnerability sprayers are served stealth `404 Not Found` responses before they ever reach your upstream services.
-* **Automated Threat Intelligence**: Seamlessly and asynchronously dispatches forensic dossiers to **AbuseIPDB** and custom webhooks (Slack, Discord, SIEM) with built-in token-bucket rate limiting to stay safely within free-tier quotas.
+* **Automated Threat Intelligence**: Seamlessly and asynchronously dispatches forensic dossiers to **AbuseIPDB**, RFC 5424 Syslog / CEF (Common Event Format) for local SIEMs, and custom webhooks (Slack, Discord, SIEM) with built-in token-bucket rate limiting to stay safely within free-tier quotas.
+* **100% Sovereign Multi-Platform Parity**: Engineered for cross-platform freedom—runs natively on **Linux** (`epoll`), **Windows** (`IOCP`), and **macOS** (`kqueue`). Verified live on Linux VPS fleets and bare-metal Windows Server instances.
 
 ---
 
@@ -154,15 +155,25 @@ Below is an authentic execution trace captured at the ingress boundary during a 
 
 ## 🚀 60-Second Quickstart
 
-### 1. Build Propylea
+### 1. Build Propylea (Linux, macOS, Windows)
+
 ```bash
+# Clone the repository
 git clone https://github.com/xuoxod/propylea.git
 cd propylea
+
+# Linux & macOS: Native release compilation
 cargo build --release
+
+# Windows (PowerShell): Native PE32+ release compilation
+cargo build --release
+
+# Cross-compile Windows binary from Linux
+cargo build --release --target x86_64-pc-windows-gnu
 ```
 
 ### 2. Configure Your Routes
-Create `propylea.toml`:
+Create `propylea.toml` (or see [`propylea.example.toml`](propylea.example.toml)):
 
 ```toml
 [server]
@@ -173,6 +184,7 @@ https_bind = "0.0.0.0:443"
 enable_defense = true
 server_banner = "Aegis-Apollo-Proxy-Service/4.12"
 # abuseipdb_api_key = "YOUR_KEY"
+# syslog_cef = true
 
 [maintenance]
 hygiene_interval_secs = 300
@@ -188,12 +200,17 @@ websocket = true
 
 ### 3. Verify & Run
 ```bash
-# Validate configuration and certificate syntax without binding ports
+# Clean-room schema check without requiring live certificates
+./target/release/propylea check --syntax-only --config propylea.toml
+
+# Full check validating certificate files and path permissions
 ./target/release/propylea check --config propylea.toml
 
-# Start the reverse proxy
+# Start the reverse proxy daemon
 ./target/release/propylea serve --config propylea.toml
 ```
+
+> 📘 **Full Multi-Platform Setup:** See the [**Multi-Platform Installation & Deployment Guide**](docs/INSTALLATION.md) for production `systemd` (Linux), Windows Service via `NSSM` (Windows), and `launchd` (macOS).
 
 ---
 

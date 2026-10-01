@@ -24,6 +24,9 @@ enable_defense = true
 # 2. Optional AbuseIPDB Community Reporting (free tier safe with internal 24-hr sliding cooldown)
 # abuseipdb_api_key = "YOUR_ABUSEIPDB_API_KEY"
 
+# 3. Optional RFC 5424 Syslog / CEF (Common Event Format) for local air-gapped SIEM audit logs
+# syslog_cef = true
+
 # Obfuscated Server header returned downstream to confound fingerprinting
 server_banner = "Aegis-Apollo-Proxy-Service/4.12"
 
