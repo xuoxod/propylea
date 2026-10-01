@@ -24,7 +24,7 @@ const BANNER: &str = r#"
 #[derive(Parser, Debug)]
 #[command(name = "propylea")]
 #[command(author = "Rick <xuoxod@gmail.com>")]
-#[command(version = "0.1.0")]
+#[command(version)]
 #[command(about = "Sovereign ultra-low-memory L7 reverse proxy & perimeter defense gateway")]
 struct Cli {
     #[command(subcommand)]

@@ -9,15 +9,20 @@ http_bind = "0.0.0.0:80"
 # Port 443 HTTPS reverse proxy listener
 https_bind = "0.0.0.0:443"
 
+# ACME challenge directory for Let's Encrypt automated zero-downtime HTTP-01 renewal
+# Defaults to /var/www/letsencrypt (serves /.well-known/acme-challenge/* directly)
+acme_webroot = "/var/www/letsencrypt"
+
 [security]
-# Active edge perimeter defense (drops scanners & decoy path probes at zero CPU cost)
+# Active edge perimeter defense (drops scanners & decoy path probes in < 15ns)
 enable_defense = true
 
-# Optional: Automatic incident reporting to AbuseIPDB (free tier safe with internal cooldown)
-# abuseipdb_api_key = "YOUR_ABUSEIPDB_API_KEY"
+# Threat Intelligence & Incident Sinks (Completely Vendor-Agnostic / BYOK):
+# 1. Optional Generic Webhook for your internal SIEM, Datadog, Splunk, Wazuh, Discord, or Slack
+# webhook_url = "https://siem.internal.corp/api/v1/waf-alerts"
 
-# Optional: Webhook alerting for SIEM / Discord / Slack
-# webhook_url = "https://hooks.slack.com/services/..."
+# 2. Optional AbuseIPDB Community Reporting (free tier safe with internal 24-hr sliding cooldown)
+# abuseipdb_api_key = "YOUR_ABUSEIPDB_API_KEY"
 
 # Obfuscated Server header returned downstream to confound fingerprinting
 server_banner = "Aegis-Apollo-Proxy-Service/4.12"
