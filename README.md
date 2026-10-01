@@ -35,6 +35,53 @@ Modern web infrastructure is plagued by two persistent problems:
 
 ---
 
+## 🏰 Where Does Propylea Fit in the Defense Stack?
+
+> **The Layman-to-Architect Mental Model**:  
+> In our sovereign infrastructure, security is designed like a fortified citadel following the **One-Job-Principle (OJP)**. No single tool is bloated with multiple responsibilities.
+
+```text
+[ Internet Client / Scanner ]
+               │
+               ▼
+   🌊 Ring 1: BASTION (L4 Firewall) ➔ Drops DDoS & packet floods in microseconds via eBPF/XDP.
+               │
+               ▼
+   🏛️ Ring 2: PROPYLEA (L7 Gateway) ➔ Sovereign front door (ports 80 & 443). Terminates TLS,
+               │                       routes domains, tunnels WebSockets, vacuums RAM (<15MB).
+               │
+        (Embedded Sentry)
+               ▼
+   🏹 Ring 3: PHYLAX (WAF Engine)  ➔ Evaluates URI decoy trie in <15ns. Drops scanners
+               │                       with stealth 404s and reports IPs to AbuseIPDB.
+               │
+               ▼
+   🚪 Ring 4: SLOW-SHIELD (L7.5)   ➔ Equalizes authentication timing (Argon2id dummy cycles)
+               │                       and throttles cross-IP credential attacks.
+               │
+               ▼
+   👑 Ring 5: APPLICATIONS         ➔ RMediaTech (:8081), Matrix (:8082), LiveKit SFU (:7880).
+               │
+               ▼
+   📜 Audit: SOVEREIGN LEDGER      ➔ Appends every mutation to a tamper-evident SHA-256 Merkle chain.
+
+   🌉 Private Bridge: CONDUIT      ➔ Encrypted remote PTY terminal, 360° radar, & hardware intercom.
+                                      (Conduit is NOT a public web proxy; edge routing belongs to Propylea).
+```
+
+### 🧭 Sovereign Tool Responsibilities at a Glance
+
+| Crate | Sovereign Role | Layer | Primary Responsibility | Replaces |
+| :--- | :--- | :---: | :--- | :--- |
+| **`bastion`** | Microsecond IP Firewall | **L4** | Bitwise Radix Trie packet filtering & SYN defense | `iptables`, `ufw` |
+| **`propylea`** | L7 Gateway & Reverse Proxy | **L7** | Multi-domain TLS, WebSocket tunneling, `< 15MB` RAM | **`caddy`**, **`nginx`**, `traefik` |
+| **`phylax`** | 13-Layer Perimeter WAF | **L7 Library**| `< 15ns` honeypot trie, stealth 404s, AbuseIPDB reporting | Cloudflare WAF, ModSecurity |
+| **`slow-shield`** | Credential Velocity Governor | **L7.5** | Distributed brute-force defense & Argon2id equalizer | Redis rate limiters |
+| **`conduit`** | Outpost Remote Bridge | **Tunnel** | PTY terminal, 360° radar sweep, hardware intercom | TeamViewer, ngrok, SSH jumps |
+| **`sovereign-ledger`** | Merkle Cryptographic Audit | **Daemon** | SHA-256 hash-chained immutable audit ledger | Datadog audit logs |
+
+---
+
 ## 📊 Comparative Scorecard
 
 | Dimension | **Propylea** | **Caddy** | **Nginx** | **Traefik** |
@@ -180,6 +227,8 @@ websocket = true
 
 ## 📚 Documentation Hierarchy
 
+* 🛡️ **[Sovereign Defense Topology](docs/DEFENSE_TOPOLOGY.md)**: Mental model, castle architecture, and complete disambiguation matrix between Bastion, Propylea, Phylax, Slow-Shield, and Conduit.
+* 🩺 **[Troubleshooting & Incident Runbook](docs/TROUBLESHOOTING.md)**: 30-second checklist, common error fixes (502s, port conflicts, TLS certs, WebSockets), and live diagnostic commands.
 * 📘 **[Installation & Systemd Guide](docs/INSTALLATION.md)**: Setup as a hardened systemd daemon on Ubuntu, Debian, Rocky, or Arch.
 * ⚙️ **[Configuration Reference](docs/CONFIGURATION.md)**: Complete guide to all TOML directives and tuning parameters.
 * 🔒 **[Let's Encrypt Guide](docs/LETSENCRYPT.md)**: Zero-downtime certificate acquisition, automated renewal hooks, and permissions.
