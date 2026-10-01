@@ -147,8 +147,9 @@ async fn run_serve(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     // 3. Spawn HTTP-to-HTTPS redirector
     let http_bind = config.server.http_bind;
     let sec_http = config.security.clone();
+    let acme_webroot = config.server.acme_webroot.clone();
     tokio::spawn(async move {
-        if let Err(e) = propylea::run_http_redirect_server(http_bind, sec_http).await {
+        if let Err(e) = propylea::run_http_redirect_server(http_bind, sec_http, acme_webroot).await {
             error!("HTTP redirect server failed on {}: {}", http_bind, e);
         }
     });

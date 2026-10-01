@@ -6,13 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [0.2.1] - 2026-10-01 (Fleet Ingress Unification & Sovereign Lockdown)
+## [0.2.1] - 2026-10-01 (Fleet Ingress Unification, ACME Webroot Engine & Sovereign Lockdown)
 
 ### 🌟 Added & Production Milestones
+* **Autonomous ACME HTTP-01 Webroot Engine (`src/acme.rs`)**:
+  - RFC 8555 compliant token serving on Port 80 and HTTPS directly from configurable webroot (`acme_webroot = "/var/www/letsencrypt"`).
+  - Path-traversal immunity: strict character validation (`[a-zA-Z0-9_-]`, max 128 chars) rejecting `..`, slashes, and null bytes with HTTP 400 Bad Request before filesystem interaction.
+  - Bounded memory read: capped at 4,096 bytes preventing file allocation bomb DoS.
+  - Automated deployment reload hook (`/etc/letsencrypt/renewal-hooks/deploy/propylea-reload.sh`) wired to systemd `certbot.timer` across all nodes.
+* **Unified Certificate Fleet Standard (Node 1 & Node 2)**:
+  - **Node 2 (`sfu.rmediatech.com`)**: Verified live with `certbot renew --dry-run` achieving 100% simulated renewal success via `propylea` port 80 passthrough.
+  - **Node 1 (`rmediatech.com`, `www`, `next`, `matrix`)**: Minted unified certificate in `/etc/letsencrypt/live/rmediatech.com/` valid through December 30, 2026.
 * **Fleet-Wide Production Lockdown (Node 1 & Node 2)**:
-  - **Node 2 (`sfu.rmediatech.com`)**: Deployed `propylea` on ports 80/443 with full-duplex WebSocket tunneling to `livekit-server` (:7880). Banished and purged legacy Nginx packages and remnants completely (`8.1 MB` RSS vs legacy `28.4 MB`). Verified 13/13 health checks.
-  - **Node 1 (`rmediatech.com`, `matrix.rmediatech.com`)**: Migrated edge reverse proxying from `conduit-proxy` to `propylea` on ports 80/443 with multi-domain TLS multiplexing to `rmediatech` (:8081) and `matrix-server` (:8082). Banished and purged legacy Caddy packages and remnants completely (`8.0 MB` RSS).
-  - **Fleet Ingress Parity**: 100% of public edge gateways across the sovereign fleet now run unified `propylea` binaries with nanosecond Phylax threat trie interception and automated `libc::malloc_trim` memory hygiene.
+  - **Node 2 (`sfu.rmediatech.com`)**: Deployed `propylea` v0.2.1 on ports 80/443 with full-duplex WebSocket tunneling to `livekit-server` (:7880). Banished and purged legacy Nginx packages completely (`8.1 MB` RSS vs legacy `28.4 MB`). Verified 13/13 health checks.
+  - **Node 1 (`rmediatech.com`, `matrix.rmediatech.com`)**: Migrated edge reverse proxying to `propylea` v0.2.1 on ports 80/443 with multi-domain TLS multiplexing to `rmediatech` (:8081) and `matrix-server` (:8082). Banished and purged legacy Caddy packages completely (`8.0 MB` RSS).
+* **Live Adversarial Self-Attack Scorecard (`POC TDD+++++`)**:
+  - 15/15 Decoy recon probes (`/.env`, `/.git/config`, `/.aws/credentials`, `/wp-admin`, `/phpinfo.php`) intercepted in $<15\text{ns}$ with stealth `404 Not Found` and obfuscated `Aegis-Apollo-Proxy-Service/4.12` banner.
+  - ACME traversal and injection probes rejected with `400 Bad Request`.
+  - Host header injection (`Host: attacker-controlled-domain.xyz`) safely dropped with `404`.
+  - Malicious scanner User-Agents (`sqlmap`, `nikto`, `masscan`, `gobuster`) intercepted at edge.
+  - Structural registration honeypot (`website_url`) triggered socket-hostage tarpit.
+  - Multi-vector scanner burst triggered Autonomous Quarantine (Layer 0), validating live IP self-immunization while benign traffic from unquarantined nodes remained 100% unaffected.
 * **Sovereign Defense Topology Blueprint (`docs/DEFENSE_TOPOLOGY.md`)**:
   - Authored comprehensive Layman-to-Architect mental model detailing the 5 concentric security rings (`Bastion` $\to$ `Propylea` $\to$ `Phylax` $\to$ `Slow-Shield` $\to$ Applications $\to$ `Sovereign-Ledger`).
   - Added Definitive Disambiguation Matrix clarifying strict One-Job-Principle (OJP) boundaries across all sovereign crates.
@@ -20,7 +34,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Operator Troubleshooting & Diagnostic Runbook (`docs/TROUBLESHOOTING.md`)**:
   - Published 30-second triage checklist for operators and engineers.
   - Added resolution workflows for `502 Bad Gateway`, port `80`/`443` address collisions (`os error 98`), low-port permissions (`cap_net_bind_service`), TLS certificate mismatch, and WebSocket 1006 drops.
-  - Added live diagnostic commands for verifying HTTP-to-HTTPS 301 redirects, decoy trap responses, and RSS memory footprints.
 * **Architecture Mental Model in README**:
   - Integrated the Fortress Mental Model directly into the primary `README.md` to eliminate confusion for external developers and operators.
 

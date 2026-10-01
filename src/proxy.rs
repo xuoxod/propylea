@@ -54,6 +54,7 @@ pub struct ProxyState {
     pub defense: Arc<EdgeDefense>,
     pub governor: ResourceGovernor,
     pub telemetry: TelemetryRingBuffer,
+    pub acme_webroot: Option<Arc<std::path::PathBuf>>,
 }
 
 pub async fn run_https_proxy_server(
@@ -82,6 +83,7 @@ pub async fn run_https_proxy_listener(
         defense,
         governor,
         telemetry,
+        acme_webroot: config.server.acme_webroot.map(Arc::new),
     };
 
     loop {
@@ -151,6 +153,19 @@ pub async fn handle_proxy_request(
         .get(USER_AGENT)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
+
+    // 0. ACME HTTP-01 Challenge Passthrough (in case validator connects over HTTPS)
+    if let Some(mut acme_res) = crate::acme::try_serve_acme_challenge(
+        &raw_path,
+        state.acme_webroot.as_deref().map(|p| p.as_path()),
+    )
+    .await
+    {
+        inject_response_security_headers(&mut acme_res, &state.security);
+        let (parts, body) = acme_res.into_parts();
+        let boxed = body.map_err(|e| match e {}).boxed();
+        return Ok(Response::from_parts(parts, boxed));
+    }
 
     // 1. Edge Perimeter Defense: Check for hostile scan / decoy URI
     if state.security.enable_defense {

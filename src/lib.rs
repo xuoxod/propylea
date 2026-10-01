@@ -5,6 +5,7 @@
 //! scans at the edge before they touch upstream services, tunnels WebSockets bi-directionally,
 //! governs host memory with autonomous hygiene passes, and records queryable forensic telemetry.
 
+pub mod acme;
 pub mod config;
 pub mod defense;
 pub mod headers;
@@ -16,6 +17,7 @@ pub mod telemetry;
 pub mod tls;
 
 // Primary re-exports
+pub use acme::{try_serve_acme_challenge, ACME_CHALLENGE_PREFIX};
 pub use config::{ConfigError, MaintenanceSettings, PropyleaConfig, RouteConfig, SecurityConfig};
 pub use defense::EdgeDefense;
 pub use http_redirect::{run_http_redirect_listener, run_http_redirect_server};

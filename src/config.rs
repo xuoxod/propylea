@@ -36,6 +36,9 @@ pub struct ServerConfig {
     /// Port 443 HTTPS reverse proxy listener address
     #[serde(default = "default_https_bind")]
     pub https_bind: SocketAddr,
+    /// ACME challenge webroot directory (defaults to /var/www/letsencrypt)
+    #[serde(default = "default_acme_webroot")]
+    pub acme_webroot: Option<PathBuf>,
     /// Optional worker thread limit (defaults to logical CPU count)
     #[serde(default)]
     pub worker_threads: Option<usize>,
@@ -47,6 +50,21 @@ fn default_http_bind() -> SocketAddr {
 
 fn default_https_bind() -> SocketAddr {
     "0.0.0.0:443".parse().unwrap()
+}
+
+fn default_acme_webroot() -> Option<PathBuf> {
+    Some(PathBuf::from("/var/www/letsencrypt"))
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            http_bind: default_http_bind(),
+            https_bind: default_https_bind(),
+            acme_webroot: default_acme_webroot(),
+            worker_threads: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -15,7 +15,7 @@ use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tempfile::NamedTempFile;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 fn generate_tls_files(domain: &str) -> (NamedTempFile, NamedTempFile) {
@@ -81,6 +81,7 @@ async fn test_adversarial_vulnerability_scanner_battery() {
             http_bind: "127.0.0.1:0".parse().unwrap(),
             https_bind: "127.0.0.1:0".parse().unwrap(),
             worker_threads: None,
+            ..Default::default()
         },
         security: SecurityConfig {
             enable_defense: true,
@@ -185,6 +186,7 @@ async fn test_upstream_crash_and_resilience() {
             http_bind: "127.0.0.1:0".parse().unwrap(),
             https_bind: "127.0.0.1:0".parse().unwrap(),
             worker_threads: None,
+            ..Default::default()
         },
         security: SecurityConfig {
             enable_defense: true,
@@ -263,6 +265,7 @@ async fn test_abrupt_client_disconnect_connection_drain() {
             http_bind: "127.0.0.1:0".parse().unwrap(),
             https_bind: "127.0.0.1:0".parse().unwrap(),
             worker_threads: None,
+            ..Default::default()
         },
         security: SecurityConfig::default(),
         maintenance: MaintenanceSettings::default(),
@@ -351,6 +354,7 @@ async fn test_adversarial_query_parameter_credential_scrubbing() {
             http_bind: "127.0.0.1:0".parse().unwrap(),
             https_bind: "127.0.0.1:0".parse().unwrap(),
             worker_threads: None,
+            ..Default::default()
         },
         security: SecurityConfig::default(),
         maintenance: MaintenanceSettings::default(),
@@ -414,4 +418,91 @@ async fn test_adversarial_query_parameter_credential_scrubbing() {
     assert!(recorded_path.contains("api_key=[REDACTED]"));
     assert!(recorded_path.contains("client_secret=[REDACTED]"));
     assert!(recorded_path.contains("code=[REDACTED]"));
+}
+
+#[tokio::test]
+async fn test_adversarial_acme_challenge_security_and_traversal() {
+    let dir = tempfile::tempdir().unwrap();
+    let challenge_dir = dir.path().join(".well-known").join("acme-challenge");
+    std::fs::create_dir_all(&challenge_dir).unwrap();
+
+    // 1. Create a legitimate challenge token file
+    let valid_token = "valid_acme-token-ABC_123";
+    let token_file = challenge_dir.join(valid_token);
+    let mut f = std::fs::File::create(&token_file).unwrap();
+    f.write_all(b"valid_acme-token-ABC_123.auth_signature_xyz").unwrap();
+
+    // 2. Create an oversized allocation bomb file (5000 bytes > 4096 cap)
+    let bomb_token = "oversized_token_bomb";
+    let bomb_file = challenge_dir.join(bomb_token);
+    let mut f_bomb = std::fs::File::create(&bomb_file).unwrap();
+    f_bomb.write_all(&vec![b'A'; 5000]).unwrap();
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+
+    let webroot = dir.path().to_path_buf();
+    tokio::spawn(async move {
+        let _ = propylea::run_http_redirect_listener(
+            listener,
+            SecurityConfig::default(),
+            Some(webroot),
+        )
+        .await;
+    });
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    // Invariant 1: Raw directory traversal attempt over wire is rejected with 400 Bad Request
+    let mut stream = TcpStream::connect(addr).await.unwrap();
+    stream
+        .write_all(b"GET /.well-known/acme-challenge/../../etc/passwd HTTP/1.1\r\nHost: example.com\r\n\r\n")
+        .await
+        .unwrap();
+    let mut response_buf = [0u8; 512];
+    let n = stream.read(&mut response_buf).await.unwrap();
+    let response_str = String::from_utf8_lossy(&response_buf[..n]);
+    assert!(response_str.starts_with("HTTP/1.1 400 Bad Request"));
+
+    // Invariant 2: Non-alphanumeric / invalid characters are rejected with 400 Bad Request
+    let res_invalid = client
+        .get(format!("http://{}/.well-known/acme-challenge/token!admin$attack", addr))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res_invalid.status(), StatusCode::BAD_REQUEST);
+
+    // Invariant 3: Oversized token path is rejected with 400 Bad Request
+    let huge_token = "a".repeat(200);
+    let res_huge = client
+        .get(format!("http://{}/.well-known/acme-challenge/{}", addr, huge_token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res_huge.status(), StatusCode::BAD_REQUEST);
+
+    // Invariant 4: Allocation bomb file (>4096 bytes) is refused with 404
+    let res_bomb = client
+        .get(format!("http://{}/.well-known/acme-challenge/{}", addr, bomb_token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res_bomb.status(), StatusCode::NOT_FOUND);
+
+    // Invariant 5: Legitimate challenge token is served with 200 OK and text/plain
+    let res_ok = client
+        .get(format!("http://{}/.well-known/acme-challenge/{}", addr, valid_token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res_ok.status(), StatusCode::OK);
+    assert_eq!(
+        res_ok.headers().get(hyper::header::CONTENT_TYPE).unwrap(),
+        "text/plain; charset=utf-8"
+    );
+    let text = res_ok.text().await.unwrap();
+    assert_eq!(text, "valid_acme-token-ABC_123.auth_signature_xyz");
 }

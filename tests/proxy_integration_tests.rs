@@ -36,7 +36,7 @@ async fn test_http_to_https_redirect_with_query_preservation() {
     let addr = listener.local_addr().unwrap();
 
     tokio::spawn(async move {
-        let _ = propylea::run_http_redirect_listener(listener, SecurityConfig::default()).await;
+        let _ = propylea::run_http_redirect_listener(listener, SecurityConfig::default(), None).await;
     });
 
     let client = reqwest::Client::builder()
@@ -116,6 +116,7 @@ async fn test_https_reverse_proxy_end_to_end_and_defense_trap() {
             http_bind: "127.0.0.1:0".parse().unwrap(),
             https_bind: "127.0.0.1:0".parse().unwrap(),
             worker_threads: None,
+            ..Default::default()
         },
         security: SecurityConfig {
             enable_defense: true,
