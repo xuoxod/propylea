@@ -17,6 +17,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Clone)]
 pub struct EdgeDefense {
     pipeline: Arc<ShieldPipeline>,
+    bot_guard: Arc<phylax::BotGuard>,
 }
 
 impl Default for EdgeDefense {
@@ -50,11 +51,19 @@ impl EdgeDefense {
 
         Self {
             pipeline: Arc::new(builder.build()),
+            bot_guard: Arc::new(phylax::BotGuard::new()),
         }
     }
 
     pub fn with_pipeline(pipeline: Arc<ShieldPipeline>) -> Self {
-        Self { pipeline }
+        Self {
+            pipeline,
+            bot_guard: Arc::new(phylax::BotGuard::new()),
+        }
+    }
+
+    pub fn bot_guard(&self) -> &phylax::BotGuard {
+        &self.bot_guard
     }
 
     pub fn pipeline(&self) -> &ShieldPipeline {
@@ -102,8 +111,8 @@ impl EdgeDefense {
             ..Default::default()
         };
 
+        // 1. Layer 0 & 0.5: Autonomous Quarantine, Decoy URI Honeyroute, Subnet Guard
         match self.pipeline.evaluate_perimeter(&shield_req) {
-            ShieldVerdict::Allow { .. } => None,
             ShieldVerdict::Deny(reason) => {
                 tracing::warn!(
                     ip = %client_ip,
@@ -125,9 +134,51 @@ impl EdgeDefense {
                     hyper::header::HeaderValue::from_static("14"),
                 );
 
-                Some(res)
+                return Some(res);
             }
+            ShieldVerdict::Allow { .. } => {}
         }
+
+        // 2. Sub-microsecond Bot Guard Interception (RFC 9309) on surviving routes
+        let bot_verdict = self.bot_guard.evaluate_perimeter(user_agent, path);
+        if let phylax::bot_guard::BotVerdict::Blocked {
+            category,
+            matched_token,
+        } = bot_verdict
+        {
+            tracing::warn!(
+                ip = %client_ip,
+                path = %path,
+                method = %method,
+                category = %category.name(),
+                token = %matched_token,
+                ua = ?user_agent,
+                "⛔ [PROPYLEA-EDGE] Automated bot / scraper intercepted at perimeter boundary (403 Forbidden returned)."
+            );
+
+            let body_msg = format!(
+                "Access Denied: {} ({}) is prohibited on Sovereign infrastructure (RFC 9309).\n",
+                category.name(),
+                matched_token
+            );
+            let body_bytes = Bytes::from(body_msg);
+            let body_len_str = body_bytes.len().to_string();
+
+            let mut res = Response::new(Full::new(body_bytes));
+            *res.status_mut() = StatusCode::FORBIDDEN;
+            res.headers_mut().insert(
+                CONTENT_TYPE,
+                hyper::header::HeaderValue::from_static("text/plain; charset=utf-8"),
+            );
+            res.headers_mut().insert(
+                CONTENT_LENGTH,
+                hyper::header::HeaderValue::from_str(&body_len_str).unwrap(),
+            );
+
+            return Some(res);
+        }
+
+        None
     }
 }
 
@@ -164,5 +215,43 @@ mod tests {
         let res2 = defense.evaluate_request(ip, "GET", "/wp-login.php", Some("Mozilla/5.0"));
         assert!(res2.is_some());
         assert_eq!(res2.unwrap().status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_bot_interception_returns_403() {
+        let defense = EdgeDefense::default();
+        let ip = IpAddr::V4(Ipv4Addr::new(198, 51, 100, 1));
+
+        // Claude-SearchBot blocked on storefront
+        let res = defense.evaluate_request(ip, "GET", "/sitemap.xml", Some("Claude-SearchBot/1.0"));
+        assert!(res.is_some());
+        let res = res.unwrap();
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            res.headers().get("content-type").unwrap(),
+            "text/plain; charset=utf-8"
+        );
+
+        // BuiltWith blocked
+        let res2 = defense.evaluate_request(ip, "GET", "/llms.txt", Some("BuiltWith/1.4"));
+        assert!(res2.is_some());
+        assert_eq!(res2.unwrap().status(), StatusCode::FORBIDDEN);
+
+        // CensysInspect blocked
+        let res3 = defense.evaluate_request(ip, "GET", "/security.txt", Some("CensysInspect/1.1"));
+        assert!(res3.is_some());
+        assert_eq!(res3.unwrap().status(), StatusCode::FORBIDDEN);
+
+        // Robots.txt is ALWAYS allowed for any bot
+        let res_robots = defense.evaluate_request(ip, "GET", "/robots.txt", Some("Claude-SearchBot/1.0"));
+        assert!(res_robots.is_none());
+
+        // Googlebot is allowed on public storefront
+        let res_google = defense.evaluate_request(ip, "GET", "/tools", Some("Googlebot/2.1"));
+        assert!(res_google.is_none());
+
+        // Curl allowed on installer path
+        let res_curl = defense.evaluate_request(ip, "GET", "/install/metaforge", Some("curl/8.5.0"));
+        assert!(res_curl.is_none());
     }
 }

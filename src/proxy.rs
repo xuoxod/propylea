@@ -178,16 +178,23 @@ pub async fn handle_proxy_request(
             state.governor.record_threat();
             inject_response_security_headers(&mut def_res, &state.security);
 
+            let status = def_res.status().as_u16();
+            let threat_category = if status == StatusCode::FORBIDDEN.as_u16() {
+                "Bot Perimeter Intercept".to_string()
+            } else {
+                "Hostile Recon Probe".to_string()
+            };
+
             state.telemetry.record(TelemetryRecord {
                 timestamp_ms: current_time_ms(),
                 client_ip: client_ip.to_string(),
                 method,
                 path: full_path,
-                status: StatusCode::NOT_FOUND.as_u16(),
+                status,
                 duration_us: timer.elapsed_micros(),
                 upstream_target: None,
                 threat_trapped: true,
-                threat_category: Some("Hostile Recon Probe".into()),
+                threat_category: Some(threat_category),
                 user_agent,
             });
 
