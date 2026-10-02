@@ -8,6 +8,7 @@
 pub mod acme;
 pub mod config;
 pub mod defense;
+pub mod framing_guard;
 pub mod headers;
 pub mod http_redirect;
 pub mod maintenance;
@@ -15,11 +16,14 @@ pub mod proxy;
 pub mod router;
 pub mod telemetry;
 pub mod tls;
+pub mod tls_fingerprint;
 
 // Primary re-exports
 pub use acme::{try_serve_acme_challenge, ACME_CHALLENGE_PREFIX};
 pub use config::{ConfigError, MaintenanceSettings, PropyleaConfig, RouteConfig, SecurityConfig};
 pub use defense::EdgeDefense;
+pub use framing_guard::{FramingGuard, FramingViolation};
+pub use tls_fingerprint::{ClientTlsProfile, UserAgentCoherenceVerdict};
 pub use http_redirect::{run_http_redirect_listener, run_http_redirect_server};
 pub use maintenance::{GovernorMetrics, MaintenanceConfig, ResourceGovernor};
 pub use proxy::{

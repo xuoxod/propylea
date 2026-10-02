@@ -55,6 +55,7 @@ pub struct ProxyState {
     pub governor: ResourceGovernor,
     pub telemetry: TelemetryRingBuffer,
     pub acme_webroot: Option<Arc<std::path::PathBuf>>,
+    pub framing_guard: Arc<crate::framing_guard::FramingGuard>,
 }
 
 pub async fn run_https_proxy_server(
@@ -84,6 +85,7 @@ pub async fn run_https_proxy_listener(
         governor,
         telemetry,
         acme_webroot: config.server.acme_webroot.map(Arc::new),
+        framing_guard: Arc::new(crate::framing_guard::FramingGuard::default()),
     };
 
     loop {
@@ -103,6 +105,15 @@ pub async fn run_https_proxy_listener(
 
         tokio::spawn(async move {
             let _conn_guard = _guard; // Held until task completion
+
+            // Sniff ClientHello from raw stream without consuming socket buffer
+            let mut peek_buf = [0u8; 1024];
+            let tls_profile = match raw_stream.peek(&mut peek_buf).await {
+                Ok(n) if n > 0 => crate::tls_fingerprint::ClientTlsProfile::parse_client_hello(&peek_buf[..n]),
+                _ => None,
+            };
+            let tls_profile = tls_profile.map(Arc::new);
+
             let tls_stream = match acceptor.accept(raw_stream).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -116,8 +127,9 @@ pub async fn run_https_proxy_listener(
             let service = service_fn(move |req: Request<hyper::body::Incoming>| {
                 let state = state.clone();
                 let client_ip = remote_addr.ip();
+                let profile = tls_profile.clone();
                 async move {
-                    handle_proxy_request(req, client_ip, state).await
+                    handle_proxy_request_with_tls(req, client_ip, state, profile).await
                 }
             });
 
@@ -137,7 +149,31 @@ pub async fn handle_proxy_request(
     client_ip: IpAddr,
     state: ProxyState,
 ) -> Result<Response<BoxedBody>, hyper::Error> {
+    handle_proxy_request_with_tls(req, client_ip, state, None).await
+}
+
+/// Core request handler dispatching requests upstream with TLS profile verification
+pub async fn handle_proxy_request_with_tls(
+    mut req: Request<hyper::body::Incoming>,
+    client_ip: IpAddr,
+    state: ProxyState,
+    tls_profile: Option<Arc<crate::tls_fingerprint::ClientTlsProfile>>,
+) -> Result<Response<BoxedBody>, hyper::Error> {
     let timer = ExecutionTimer::start();
+
+    // 0. Layer 0: HTTP Protocol Framing & Request Smuggling Defense
+    if let Err(violation) = state.framing_guard.validate_headers(req.headers(), req.method()) {
+        warn!(ip = %client_ip, error = %violation, "🚨 [PROPYLEA-FRAMING] HTTP Framing violation rejected at edge");
+        state.governor.record_threat();
+        let res = violation.public_response();
+        let (parts, body) = res.into_parts();
+        let boxed = body.map_err(|e| match e {}).boxed();
+        return Ok(Response::from_parts(parts, boxed));
+    }
+
+    // Sanitize ingress proxy headers (strip spoofed X-Forwarded-*, insert verified peer IP)
+    crate::framing_guard::FramingGuard::sanitize_ingress_headers(&mut req, client_ip);
+
     let method = req.method().to_string();
     let raw_path = req.uri().path().to_string();
     let raw_query = req.uri().query().unwrap_or("");
@@ -154,7 +190,7 @@ pub async fn handle_proxy_request(
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
 
-    // 0. ACME HTTP-01 Challenge Passthrough (in case validator connects over HTTPS)
+    // 0.5 ACME HTTP-01 Challenge Passthrough (in case validator connects over HTTPS)
     if let Some(mut acme_res) = crate::acme::try_serve_acme_challenge(
         &raw_path,
         state.acme_webroot.as_deref().map(|p| p.as_path()),
@@ -167,13 +203,14 @@ pub async fn handle_proxy_request(
         return Ok(Response::from_parts(parts, boxed));
     }
 
-    // 1. Edge Perimeter Defense: Check for hostile scan / decoy URI
+    // 1. Edge Perimeter Defense: Check for hostile scan / decoy URI / TLS spoofing
     if state.security.enable_defense {
-        if let Some(mut def_res) = state.defense.evaluate_request(
+        if let Some(mut def_res) = state.defense.evaluate_request_with_tls(
             client_ip,
             &method,
             &raw_path,
             user_agent.as_deref(),
+            tls_profile.as_deref(),
         ) {
             state.governor.record_threat();
             inject_response_security_headers(&mut def_res, &state.security);

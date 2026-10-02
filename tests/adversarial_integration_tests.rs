@@ -563,3 +563,123 @@ async fn test_adversarial_canary_trap_and_dynamic_bot_harvesting() {
     assert_eq!(ai_res.unwrap().status(), StatusCode::FORBIDDEN, "Commercial AI scraper must receive 403 Forbidden");
 }
 
+#[tokio::test]
+async fn test_adversarial_http_smuggling_and_framing_attacks() {
+    let guard = propylea::FramingGuard::new(1024 * 1024); // 1 MB limit
+    let client_ip = "198.51.100.88".parse().unwrap();
+
+    // 1. Attack Vector: TE.CL Desync / Request Smuggling (RFC 9112 §6.1 / RFC 7230 §3.3.3)
+    let req_te_cl = Request::builder()
+        .method("POST")
+        .header("Content-Length", "42")
+        .header("Transfer-Encoding", "chunked")
+        .body(())
+        .unwrap();
+
+    let res_te_cl = guard.validate_headers(req_te_cl.headers(), req_te_cl.method());
+    assert_eq!(res_te_cl, Err(propylea::FramingViolation::ConflictingFraming));
+
+    // 2. Attack Vector: Multiple Differing Content-Length Headers
+    let mut req_multi_cl = Request::builder()
+        .method("POST")
+        .header("Content-Length", "42")
+        .body(())
+        .unwrap();
+    req_multi_cl.headers_mut().append("Content-Length", "100".parse().unwrap());
+
+    let res_multi = guard.validate_headers(req_multi_cl.headers(), req_multi_cl.method());
+    assert_eq!(res_multi, Err(propylea::FramingViolation::MultipleContentLengths));
+
+    // 3. Attack Vector: Allocation Bomb / Payload Exceeding Limit
+    let req_bomb = Request::builder()
+        .method("POST")
+        .header("Content-Length", "50000000") // 50 MB
+        .body(())
+        .unwrap();
+
+    let res_bomb = guard.validate_headers(req_bomb.headers(), req_bomb.method());
+    assert!(matches!(res_bomb, Err(propylea::FramingViolation::PayloadTooLarge { .. })));
+
+    // 4. Attack Vector: Untrusted Ingress Header Spoofing
+    let mut req_spoof = Request::builder()
+        .header("X-Forwarded-For", "127.0.0.1")
+        .header("X-Real-IP", "127.0.0.1")
+        .header("CF-Connecting-IP", "10.0.0.1")
+        .body(())
+        .unwrap();
+
+    propylea::FramingGuard::sanitize_ingress_headers(&mut req_spoof, client_ip);
+
+    assert_eq!(
+        req_spoof.headers().get("X-Forwarded-For").unwrap().to_str().unwrap(),
+        "198.51.100.88"
+    );
+    assert_eq!(
+        req_spoof.headers().get("X-Real-IP").unwrap().to_str().unwrap(),
+        "198.51.100.88"
+    );
+    assert!(req_spoof.headers().get("CF-Connecting-IP").is_none());
+}
+
+#[tokio::test]
+async fn test_adversarial_tls_fingerprint_spoofed_browser_detection() {
+    let defense = propylea::defense::EdgeDefense::default();
+    let client_ip = "198.51.100.99".parse().unwrap();
+
+    // 1. Attack Vector: Python/Go script masquerading as Chrome 128
+    let python_tls_profile = propylea::ClientTlsProfile {
+        has_grease: false,
+        cipher_count: 17,
+        offers_h2: false,
+        has_sni: true,
+        primary_ciphers: vec![0x1301, 0x1302, 0x1303],
+    };
+
+    let spoofed_chrome_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+
+    // EdgeDefense must detect mismatch and return stealth 404
+    let spoof_res = defense.evaluate_request_with_tls(
+        client_ip,
+        "GET",
+        "/api/v1/auth/login",
+        Some(spoofed_chrome_ua),
+        Some(&python_tls_profile),
+    );
+
+    assert!(spoof_res.is_some(), "TLS spoofing attack must be intercepted");
+    let resp = spoof_res.unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND, "Spoofed browser must receive stealth 404");
+
+    // 2. Genuine Chrome Client: Has GREASE and h2
+    let real_chrome_tls_profile = propylea::ClientTlsProfile {
+        has_grease: true,
+        cipher_count: 16,
+        offers_h2: true,
+        has_sni: true,
+        primary_ciphers: vec![0x1301, 0x1302, 0x1303],
+    };
+
+    let genuine_res = defense.evaluate_request_with_tls(
+        client_ip,
+        "GET",
+        "/products",
+        Some(spoofed_chrome_ua),
+        Some(&real_chrome_tls_profile),
+    );
+
+    assert!(genuine_res.is_none(), "Genuine Chrome client with GREASE must pass edge defense cleanly");
+
+    // 3. Search Engine Spider (Googlebot): Allowed even without GREASE
+    let googlebot_ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+    let googlebot_res = defense.evaluate_request_with_tls(
+        client_ip,
+        "GET",
+        "/terms",
+        Some(googlebot_ua),
+        Some(&python_tls_profile),
+    );
+
+    assert!(googlebot_res.is_none(), "Googlebot must not be falsely flagged as a spoofing attack");
+}
+
+

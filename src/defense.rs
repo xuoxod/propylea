@@ -93,14 +93,60 @@ impl EdgeDefense {
         path: &str,
         user_agent: Option<&str>,
     ) -> Option<Response<Full<Bytes>>> {
+        self.evaluate_request_with_tls(client_ip, method, path, user_agent, None)
+    }
+
+    /// Evaluates incoming request along with optional TLS ClientHello profile.
+    /// Defeats User-Agent spoofing where clients impersonate Chrome/Safari over Python/Go/CLI stacks.
+    pub fn evaluate_request_with_tls(
+        &self,
+        client_ip: IpAddr,
+        method: &str,
+        path: &str,
+        user_agent: Option<&str>,
+        tls_profile: Option<&crate::tls_fingerprint::ClientTlsProfile>,
+    ) -> Option<Response<Full<Bytes>>> {
         let now_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
 
         let norm_path = phylax::decoy_uri::DecoyUriSentinel::normalize_path(path);
-
         let ip_str = client_ip.to_string();
+
+        // 0. Layer 0.1: TLS Profile vs User-Agent Coherence Verification (Anti-Spoofing)
+        if let Some(profile) = tls_profile {
+            if let crate::tls_fingerprint::UserAgentCoherenceVerdict::Spoofed { reason } =
+                profile.verify_user_agent_coherence(user_agent)
+            {
+                self.pipeline.quarantine().record_and_check(&ip_str, now_ms);
+                if let Some(ua) = user_agent {
+                    self.bot_guard.harvest_canary_probe(Some(ua), reason, now_ms);
+                }
+
+                tracing::warn!(
+                    ip = %client_ip,
+                    path = %path,
+                    ua = ?user_agent,
+                    reason = %reason,
+                    "🚨 [PROPYLEA-TLS-SPOOF] Detected User-Agent spoofing via TLS ClientHello mismatch! Deflected with stealth 404 Not Found."
+                );
+
+                let body = Bytes::from_static(b"404 Not Found\n");
+                let mut res = Response::new(Full::new(body));
+                *res.status_mut() = StatusCode::NOT_FOUND;
+                res.headers_mut().insert(
+                    CONTENT_TYPE,
+                    hyper::header::HeaderValue::from_static("text/plain; charset=utf-8"),
+                );
+                res.headers_mut().insert(
+                    CONTENT_LENGTH,
+                    hyper::header::HeaderValue::from_static("14"),
+                );
+                return Some(res);
+            }
+        }
+
         let empty_fields: [(String, String); 0] = [];
 
         let shield_req = ShieldRequest {

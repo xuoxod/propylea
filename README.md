@@ -49,6 +49,7 @@ Modern web infrastructure is plagued by two persistent problems:
                │
                ▼
    🏛️ Ring 2: PROPYLEA (L7 Gateway) ➔ Sovereign front door (ports 80 & 443). Terminates TLS,
+               │                       sniffs TLS fingerprints, blocks HTTP smuggling (TE.CL),
                │                       routes domains, tunnels WebSockets, vacuums RAM (<15MB).
                │
         (Embedded Sentry)

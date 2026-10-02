@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.2.4] - 2026-10-02 (HTTP Request Smuggling Defense, TLS Fingerprinting & Anti-Spoofing)
+
+### 🌟 Added & Fortified
+* **Strict HTTP Request Framing & Smuggling Defense (`src/framing_guard.rs` - Layer 3)**:
+  - Enforced RFC 9112 §6.1 and RFC 7230 §3.3.3: Rejects requests containing conflicting `Content-Length` and `Transfer-Encoding` headers (TE.CL / CL.TE desync attacks) with `400 Bad Request`.
+  - Blocks multiple conflicting `Content-Length` headers, comma-separated differing lengths, and non-chunked `Transfer-Encoding`.
+  - Header Hygiene: Detects and rejects NUL-byte injection (`\0`), raw carriage returns/linefeeds, and ASCII control characters (`0x7F`, `< 0x20`).
+  - Allocation Bomb Guard: Enforces maximum body limits (`413 Payload Too Large`) *before* reading or buffering payloads into memory.
+  - Ingress Header Sanitization: Strips untrusted client-supplied identity headers (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Real-IP`, `CF-Connecting-IP`), authoritatively stamping only the verified socket peer address.
+* **TLS ClientHello Fingerprinting & Anti-Spoofing (`src/tls_fingerprint.rs` - Layer 2)**:
+  - Zero-allocation socket peeking (`TcpStream::peek(&mut buf)`) parsing TLS ClientHello records in $< 200\text{ns}$ without consuming the kernel socket buffer.
+  - 1-cycle bitwise RFC 8701 GREASE detection (`(val & 0x0f0f) == 0x0a0a && ((val >> 8) == (val & 0xff))`).
+  - Cross-references TLS handshake characteristics against claimed `User-Agent`.
+  - Spoofing Defeat: If an automated client (Python `requests`/`aiohttp`, Go `net/http`, curl, CLI scripts) claims to be Chrome, Edge, or Safari, but lacks mandatory browser GREASE ciphers/extensions, it is flagged as an undeniable spoofing attack, intercepted with stealth `404 Not Found`, and added to dynamic quarantine.
+  - Preserves legitimate search engine crawlers (Googlebot, Bingbot).
+* **Adversarial Self-Attack TDD Invariants**:
+  - Added `test_adversarial_http_smuggling_and_framing_attacks` asserting TE.CL desync rejection, multiple CL rejection, allocation bomb blocking, and proxy header sanitization.
+  - Added `test_adversarial_tls_fingerprint_spoofed_browser_detection` asserting zero-bypass interception of Python/Go scripts masquerading as modern Chrome browsers.
+
 ## [0.2.3] - 2026-10-01 (Canary Trap Honeylinks, Dynamic Threat Auto-Harvesting & Kali Defense)
 
 ### 🌟 Added & Fortified
