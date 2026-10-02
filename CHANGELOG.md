@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.2.2] - 2026-10-01 (Sub-Microsecond Edge BotGuard, 403 Forbidden Interception & Live Fleet Deployment)
+
+### 🌟 Added & Enhanced
+* **Sub-Microsecond Edge Bot Guard Interception (`src/defense.rs`, `src/proxy.rs`)**:
+  - Direct integration of `phylax::BotGuard` at the outer L7 reverse proxy boundary.
+  - Intercepts automated AI scrapers (`Claude-SearchBot`, `GPTBot`, `OAI-SearchBot`, `Google-Extended`, `Meta-ExternalAgent`, `Bytespider`), technology stack profilers (`BuiltWith`, `CensysInspect`), and headless scraping tools before allocating upstream backend sockets or application resources.
+  - Deflects hostile crawlers with standard `HTTP 403 Forbidden` (`content-type: text/plain; charset=utf-8`) detailing RFC 9309 exclusion policy.
+  - Prioritizes Decoy URI Honeyroute traps (Layer 0.5) with stealth `404 Not Found` for scanner probes (`/.env`, `/.git/config`, `wp-login.php`).
+* **RFC 9309 Robots Bypass Invariant**:
+  - Guarantees unconditional passthrough for `/robots.txt` so compliant search and AI crawlers can discover their disallow directives.
+  - Guarantees developer CLI utility passthrough (`curl`, `wget`) on binary distribution endpoints (`/install/*`, `/bin/*`, `/checksums/*`, `/healthz`).
+  - Preserves legitimate search engine indexing (`Googlebot`, `Bingbot`, `DuckDuckBot`, `Slurp`, `Baiduspider`, `YandexBot`) on public storefront routes.
+* **Granular Telemetry Threat Categorization**:
+  - Telemetry ring buffer now distinguishes between `Bot Perimeter Intercept` (HTTP 403) and `Hostile Recon Probe` (HTTP 404).
+* **Live Fleet Production Verification**:
+  - Deployed and verified on **Node 1 (`rmediatech.com`, `matrix.rmediatech.com`)** and **Node 2 (`sfu.rmediatech.com`)**.
+  - Verified live deflection of `Claude-SearchBot/1.0`, `BuiltWith/1.4`, `CensysInspect/1.1`, and `GPTBot/1.0` in `<10ns`.
+
+---
+
 ## [0.2.1] - 2026-10-01 (Fleet Ingress Unification, ACME Webroot Engine & Sovereign Lockdown)
 
 ### 🌟 Added & Production Milestones
