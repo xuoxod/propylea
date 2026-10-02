@@ -508,3 +508,28 @@ async fn test_adversarial_acme_challenge_security_and_traversal() {
     let text = res_ok.text().await.unwrap();
     assert_eq!(text, "valid_acme-token-ABC_123.auth_signature_xyz");
 }
+
+#[tokio::test]
+async fn test_adversarial_canary_trap_and_dynamic_bot_harvesting() {
+    let defense = propylea::defense::EdgeDefense::default();
+    let ip = "198.51.100.42".parse().unwrap();
+    let hostile_ua = "ShadowCrawler/4.0 (Autonomous Web Scraper)";
+
+    // 1. Initial request to normal route prior to tripping canary trap
+    let normal_res = defense.evaluate_request(ip, "GET", "/products", Some(hostile_ua));
+    assert!(normal_res.is_none(), "Normal route should pass prior to tripping canary");
+
+    // 2. Crawler trips invisible Canary Trap Honeylink: /_sovereign/canary_trap
+    let canary_res = defense.evaluate_request(ip, "GET", "/_sovereign/canary_trap", Some(hostile_ua));
+    assert!(canary_res.is_some(), "Canary trap must intercept probe");
+    let resp = canary_res.unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND, "Canary trap must return stealth 404");
+
+    // 3. Preemptive dynamic harvesting active: ANY request with that User-Agent from ANY IP is now blocked!
+    let different_ip = "203.0.113.88".parse().unwrap();
+    let blocked_res = defense.evaluate_request(different_ip, "GET", "/pricing", Some(hostile_ua));
+    assert!(blocked_res.is_some(), "Harvested bot must be blocked across all IPs");
+    let resp2 = blocked_res.unwrap();
+    assert_eq!(resp2.status(), StatusCode::FORBIDDEN, "Harvested bot must receive 403 Forbidden");
+}
+

@@ -111,9 +111,52 @@ impl EdgeDefense {
             ..Default::default()
         };
 
+        // 0. Layer 0.25: Canary Trap Honeylink Interception & Dynamic Auto-Harvesting
+        if path == "/_sovereign/canary_trap"
+            || path.starts_with("/_sovereign/canary_trap")
+            || path == "/decoy/canary"
+        {
+            let harvested = self.bot_guard.harvest_canary_probe(
+                user_agent,
+                "Tripped invisible canary trap honeylink",
+                now_ms,
+            );
+            self.pipeline.quarantine().record_and_check(&ip_str, now_ms);
+
+            tracing::warn!(
+                ip = %client_ip,
+                path = %path,
+                ua = ?user_agent,
+                harvested = ?harvested,
+                "🚨 [PROPYLEA-CANARY] Invisible Canary Trap tripped! Signature autonomously harvested into dynamic threat registry."
+            );
+
+            let body = Bytes::from_static(b"404 Not Found\n");
+            let mut res = Response::new(Full::new(body));
+            *res.status_mut() = StatusCode::NOT_FOUND;
+            res.headers_mut().insert(
+                CONTENT_TYPE,
+                hyper::header::HeaderValue::from_static("text/plain; charset=utf-8"),
+            );
+            res.headers_mut().insert(
+                CONTENT_LENGTH,
+                hyper::header::HeaderValue::from_static("14"),
+            );
+            return Some(res);
+        }
+
         // 1. Layer 0 & 0.5: Autonomous Quarantine, Decoy URI Honeyroute, Subnet Guard
         match self.pipeline.evaluate_perimeter(&shield_req) {
             ShieldVerdict::Deny(reason) => {
+                // Dynamically harvest malicious User-Agent from honeyroute probes
+                if let Some(ua) = user_agent {
+                    self.bot_guard.harvest_canary_probe(
+                        Some(ua),
+                        reason.public_message(),
+                        now_ms,
+                    );
+                }
+
                 tracing::warn!(
                     ip = %client_ip,
                     path = %path,

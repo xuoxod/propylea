@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.2.3] - 2026-10-01 (Canary Trap Honeylinks, Dynamic Threat Auto-Harvesting & Kali Defense)
+
+### 🌟 Added & Fortified
+* **Autonomous Canary Trap Honeylink Interception (`/_sovereign/canary_trap`, `/decoy/canary`)**:
+  - Implemented Layer 0.25 Canary Trap Honeylink interception directly inside `propylea::defense::EdgeDefense`.
+  - Probes to canary trap endpoints return a deceptive stealth `HTTP 404 Not Found` while immediately harvesting the crawler's User-Agent into the dynamic threat registry and enforcing subnet quarantine.
+* **Preemptive Dynamic Threat Auto-Harvesting**:
+  - Probes to Decoy URI honeyroutes (`/.env`, `wp-login.php`, etc.) or Canary Trap links autonomously harvest the attacker's User-Agent token in real-time.
+  - Subsequent requests bearing that token from **any** IP or proxy across the cluster are preemptively dropped at the edge boundary with `HTTP 403 Forbidden`.
+* **Full Kali Linux & Pen-Testing Tool Interception**:
+  - Sub-microsecond deflection of offensive fuzzers (`ffuf`, `feroxbuster`, `dirsearch`, `DirBuster`, `Gobuster`, `wfuzz`, `Nuclei`), vulnerability scanners (`Acunetix`, `Nessus`, `OpenVAS`, `BurpSuite`, `OWASP ZAP`), exploit engines (`sqlmap`, `SQLNinja`, `Metasploit`), and digital forensics extractors.
+* **Adversarial Integration Tests**:
+  - Added `test_adversarial_canary_trap_and_dynamic_bot_harvesting` asserting dynamic learning, stealth 404 response, and cross-IP preemptive deflection.
+
 ## [0.2.2] - 2026-10-01 (Sub-Microsecond Edge BotGuard, 403 Forbidden Interception & Live Fleet Deployment)
 
 ### 🌟 Added & Enhanced
