@@ -525,11 +525,41 @@ async fn test_adversarial_canary_trap_and_dynamic_bot_harvesting() {
     let resp = canary_res.unwrap();
     assert_eq!(resp.status(), StatusCode::NOT_FOUND, "Canary trap must return stealth 404");
 
-    // 3. Preemptive dynamic harvesting active: ANY request with that User-Agent from ANY IP is now blocked!
+    // 3. Preemptive dynamic harvesting active: ANY request with that User-Agent from ANY IP is now stealth 404'd!
     let different_ip = "203.0.113.88".parse().unwrap();
     let blocked_res = defense.evaluate_request(different_ip, "GET", "/pricing", Some(hostile_ua));
     assert!(blocked_res.is_some(), "Harvested bot must be blocked across all IPs");
     let resp2 = blocked_res.unwrap();
-    assert_eq!(resp2.status(), StatusCode::FORBIDDEN, "Harvested bot must receive 403 Forbidden");
+    assert_eq!(resp2.status(), StatusCode::NOT_FOUND, "Harvested bot must receive stealth 404 Not Found");
+
+    // 4. Adversarial Path Evasions against Canary Trap:
+    // Scanners attempting multi-slash, dot-segments, trailing slashes, or percent-encoding
+    let evasion_ip = "192.0.2.111".parse().unwrap();
+    let evasion_ua = "EvadingDarkScraper/1.0";
+
+    // Evasion A: Multi-slash "//_sovereign//canary_trap"
+    let res_multi = defense.evaluate_request(evasion_ip, "GET", "//_sovereign//canary_trap", Some(evasion_ua));
+    assert!(res_multi.is_some(), "Multi-slash canary evasion must be trapped");
+    assert_eq!(res_multi.unwrap().status(), StatusCode::NOT_FOUND);
+
+    // Evasion B: Percent-encoding "/%5fsovereign/canary_trap"
+    let res_enc = defense.evaluate_request(evasion_ip, "GET", "/%5fsovereign/canary_trap", Some(evasion_ua));
+    assert!(res_enc.is_some(), "Percent-encoded canary evasion must be trapped");
+    assert_eq!(res_enc.unwrap().status(), StatusCode::NOT_FOUND);
+
+    // Evasion C: Dot-segment "/./_sovereign/canary_trap/"
+    let res_dot = defense.evaluate_request(evasion_ip, "GET", "/./_sovereign/canary_trap/", Some(evasion_ua));
+    assert!(res_dot.is_some(), "Dot-segment canary evasion must be trapped");
+    assert_eq!(res_dot.unwrap().status(), StatusCode::NOT_FOUND);
+
+    // Evasion bot was harvested during evasion attempts and must now be stealth 404'd on root
+    let evasion_blocked = defense.evaluate_request(evasion_ip, "GET", "/", Some(evasion_ua));
+    assert!(evasion_blocked.is_some());
+    assert_eq!(evasion_blocked.unwrap().status(), StatusCode::NOT_FOUND);
+
+    // 5. Commercial scrapers receive explicit RFC 9309 403 Forbidden
+    let ai_res = defense.evaluate_request(different_ip, "GET", "/products", Some("ClaudeBot/1.0"));
+    assert!(ai_res.is_some());
+    assert_eq!(ai_res.unwrap().status(), StatusCode::FORBIDDEN, "Commercial AI scraper must receive 403 Forbidden");
 }
 

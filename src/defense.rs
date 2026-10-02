@@ -98,13 +98,15 @@ impl EdgeDefense {
             .unwrap_or_default()
             .as_millis() as u64;
 
+        let norm_path = phylax::decoy_uri::DecoyUriSentinel::normalize_path(path);
+
         let ip_str = client_ip.to_string();
         let empty_fields: [(String, String); 0] = [];
 
         let shield_req = ShieldRequest {
             client_ip: &ip_str,
             submitted_fields: &empty_fields,
-            target_uri: Some(path),
+            target_uri: Some(&norm_path),
             http_method: Some(method),
             user_agent,
             now_ms,
@@ -112,10 +114,12 @@ impl EdgeDefense {
         };
 
         // 0. Layer 0.25: Canary Trap Honeylink Interception & Dynamic Auto-Harvesting
-        if path == "/_sovereign/canary_trap"
-            || path.starts_with("/_sovereign/canary_trap")
-            || path == "/decoy/canary"
-        {
+        let is_canary = norm_path == "/_sovereign/canary_trap"
+            || norm_path.starts_with("/_sovereign/canary_trap/")
+            || norm_path == "/decoy/canary"
+            || norm_path.starts_with("/decoy/canary/");
+
+        if is_canary {
             let harvested = self.bot_guard.harvest_canary_probe(
                 user_agent,
                 "Tripped invisible canary trap honeylink",
@@ -126,6 +130,7 @@ impl EdgeDefense {
             tracing::warn!(
                 ip = %client_ip,
                 path = %path,
+                norm_path = %norm_path,
                 ua = ?user_agent,
                 harvested = ?harvested,
                 "🚨 [PROPYLEA-CANARY] Invisible Canary Trap tripped! Signature autonomously harvested into dynamic threat registry."
@@ -160,6 +165,7 @@ impl EdgeDefense {
                 tracing::warn!(
                     ip = %client_ip,
                     path = %path,
+                    norm_path = %norm_path,
                     method = %method,
                     reason = %reason.public_message(),
                     "🚨 [PROPYLEA-EDGE] Hostile reconnaissance scan trapped at ingress (stealth 404 returned + incident reported)."
@@ -183,42 +189,71 @@ impl EdgeDefense {
         }
 
         // 2. Sub-microsecond Bot Guard Interception (RFC 9309) on surviving routes
-        let bot_verdict = self.bot_guard.evaluate_perimeter(user_agent, path);
+        let bot_verdict = self.bot_guard.evaluate_perimeter(user_agent, &norm_path);
         if let phylax::bot_guard::BotVerdict::Blocked {
             category,
             matched_token,
         } = bot_verdict
         {
-            tracing::warn!(
-                ip = %client_ip,
-                path = %path,
-                method = %method,
-                category = %category.name(),
-                token = %matched_token,
-                ua = ?user_agent,
-                "⛔ [PROPYLEA-EDGE] Automated bot / scraper intercepted at perimeter boundary (403 Forbidden returned)."
-            );
+            if category == phylax::bot_guard::BotCategory::AutomationTool {
+                // Hostile tool, penetration scanner, or trapped honeylink bot -> Stealth 404
+                tracing::warn!(
+                    ip = %client_ip,
+                    path = %path,
+                    norm_path = %norm_path,
+                    method = %method,
+                    category = %category.name(),
+                    token = %matched_token,
+                    ua = ?user_agent,
+                    "🚨 [PROPYLEA-STEALTH] Hostile automation / penetration tool deflected with stealth 404 Not Found."
+                );
 
-            let body_msg = format!(
-                "Access Denied: {} ({}) is prohibited on Sovereign infrastructure (RFC 9309).\n",
-                category.name(),
-                matched_token
-            );
-            let body_bytes = Bytes::from(body_msg);
-            let body_len_str = body_bytes.len().to_string();
+                let body = Bytes::from_static(b"404 Not Found\n");
+                let mut res = Response::new(Full::new(body));
+                *res.status_mut() = StatusCode::NOT_FOUND;
+                res.headers_mut().insert(
+                    CONTENT_TYPE,
+                    hyper::header::HeaderValue::from_static("text/plain; charset=utf-8"),
+                );
+                res.headers_mut().insert(
+                    CONTENT_LENGTH,
+                    hyper::header::HeaderValue::from_static("14"),
+                );
+                return Some(res);
+            } else {
+                // Commercial AI Scraper / SEO Profiler -> Explicit 403 Forbidden with RFC 9309 notice
+                tracing::warn!(
+                    ip = %client_ip,
+                    path = %path,
+                    norm_path = %norm_path,
+                    method = %method,
+                    category = %category.name(),
+                    token = %matched_token,
+                    ua = ?user_agent,
+                    "⛔ [PROPYLEA-EDGE] Automated commercial scraper intercepted at perimeter boundary (403 Forbidden returned)."
+                );
 
-            let mut res = Response::new(Full::new(body_bytes));
-            *res.status_mut() = StatusCode::FORBIDDEN;
-            res.headers_mut().insert(
-                CONTENT_TYPE,
-                hyper::header::HeaderValue::from_static("text/plain; charset=utf-8"),
-            );
-            res.headers_mut().insert(
-                CONTENT_LENGTH,
-                hyper::header::HeaderValue::from_str(&body_len_str).unwrap(),
-            );
+                let body_msg = format!(
+                    "Access Denied: {} ({}) is prohibited on Sovereign infrastructure (RFC 9309).\n",
+                    category.name(),
+                    matched_token
+                );
+                let body_bytes = Bytes::from(body_msg);
+                let body_len_str = body_bytes.len().to_string();
 
-            return Some(res);
+                let mut res = Response::new(Full::new(body_bytes));
+                *res.status_mut() = StatusCode::FORBIDDEN;
+                res.headers_mut().insert(
+                    CONTENT_TYPE,
+                    hyper::header::HeaderValue::from_static("text/plain; charset=utf-8"),
+                );
+                res.headers_mut().insert(
+                    CONTENT_LENGTH,
+                    hyper::header::HeaderValue::from_str(&body_len_str).unwrap(),
+                );
+
+                return Some(res);
+            }
         }
 
         None
