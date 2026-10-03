@@ -66,7 +66,10 @@ pub async fn run_https_proxy_server(
     telemetry: TelemetryRingBuffer,
 ) -> Result<(), std::io::Error> {
     let listener = TcpListener::bind(bind_addr).await?;
-    info!("🚀 [PROPYLEA] Sovereign HTTPS reverse proxy active on {}", bind_addr);
+    info!(
+        "🚀 [PROPYLEA] Sovereign HTTPS reverse proxy active on {}",
+        bind_addr
+    );
     run_https_proxy_listener(listener, tls_acceptor, config, governor, telemetry).await
 }
 
@@ -109,7 +112,9 @@ pub async fn run_https_proxy_listener(
             // Sniff ClientHello from raw stream without consuming socket buffer
             let mut peek_buf = [0u8; 1024];
             let tls_profile = match raw_stream.peek(&mut peek_buf).await {
-                Ok(n) if n > 0 => crate::tls_fingerprint::ClientTlsProfile::parse_client_hello(&peek_buf[..n]),
+                Ok(n) if n > 0 => {
+                    crate::tls_fingerprint::ClientTlsProfile::parse_client_hello(&peek_buf[..n])
+                }
                 _ => None,
             };
             let tls_profile = tls_profile.map(Arc::new);
@@ -128,9 +133,7 @@ pub async fn run_https_proxy_listener(
                 let state = state.clone();
                 let client_ip = remote_addr.ip();
                 let profile = tls_profile.clone();
-                async move {
-                    handle_proxy_request_with_tls(req, client_ip, state, profile).await
-                }
+                async move { handle_proxy_request_with_tls(req, client_ip, state, profile).await }
             });
 
             if let Err(err) = hyper_util::server::conn::auto::Builder::new(TokioExecutor::new())
@@ -162,7 +165,10 @@ pub async fn handle_proxy_request_with_tls(
     let timer = ExecutionTimer::start();
 
     // 0. Layer 0: HTTP Protocol Framing & Request Smuggling Defense
-    if let Err(violation) = state.framing_guard.validate_headers(req.headers(), req.method()) {
+    if let Err(violation) = state
+        .framing_guard
+        .validate_headers(req.headers(), req.method())
+    {
         warn!(ip = %client_ip, error = %violation, "🚨 [PROPYLEA-FRAMING] HTTP Framing violation rejected at edge");
         state.governor.record_threat();
         let res = violation.public_response();
@@ -253,9 +259,11 @@ pub async fn handle_proxy_request_with_tls(
         None => {
             warn!(ip = %client_ip, host = %host_header, "No route configured for host");
             let mut res = Response::new(
-                Full::new(Bytes::from("502 Bad Gateway: Unrecognized Sovereign Host\n"))
-                    .map_err(|e| match e {})
-                    .boxed(),
+                Full::new(Bytes::from(
+                    "502 Bad Gateway: Unrecognized Sovereign Host\n",
+                ))
+                .map_err(|e| match e {})
+                .boxed(),
             );
             *res.status_mut() = StatusCode::BAD_GATEWAY;
             inject_response_security_headers(&mut res, &state.security);
@@ -287,33 +295,20 @@ pub async fn handle_proxy_request_with_tls(
 
     if is_websocket && target.websocket_allowed {
         return handle_websocket_upgrade(
-            req,
-            client_ip,
-            target,
-            state,
-            timer,
-            method,
-            full_path,
-            user_agent,
+            req, client_ip, target, state, timer, method, full_path, user_agent,
         )
         .await;
     }
 
     // 4. Standard HTTP Reverse Proxying
     forward_http_request(
-        req,
-        client_ip,
-        target,
-        state,
-        timer,
-        method,
-        full_path,
-        user_agent,
+        req, client_ip, target, state, timer, method, full_path, user_agent,
     )
     .await
 }
 
 /// Forwards standard HTTP requests to the resolved upstream server
+#[allow(clippy::too_many_arguments)]
 async fn forward_http_request(
     mut req: Request<hyper::body::Incoming>,
     client_ip: IpAddr,
@@ -434,6 +429,7 @@ async fn forward_http_request(
 }
 
 /// Bi-directionally tunnels WebSockets between client and upstream server
+#[allow(clippy::too_many_arguments)]
 async fn handle_websocket_upgrade(
     mut req: Request<hyper::body::Incoming>,
     client_ip: IpAddr,

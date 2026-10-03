@@ -118,10 +118,7 @@ pub fn build_sni_tls_acceptor(routes: &[RouteConfig]) -> Result<TlsAcceptor, Tls
             sni_resolver
                 .add(&clean_domain, certified_key.clone())
                 .map_err(|e| {
-                    TlsError::KeyParse(format!(
-                        "Failed to register SNI {}: {:?}",
-                        clean_domain, e
-                    ))
+                    TlsError::KeyParse(format!("Failed to register SNI {}: {:?}", clean_domain, e))
                 })?;
         }
     }

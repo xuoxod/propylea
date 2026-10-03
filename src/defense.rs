@@ -33,7 +33,10 @@ impl EdgeDefense {
             .enable_timing(false);
 
         if config.enable_defense {
-            if config.abuseipdb_api_key.is_some() || config.webhook_url.is_some() || config.syslog_cef {
+            if config.abuseipdb_api_key.is_some()
+                || config.webhook_url.is_some()
+                || config.syslog_cef
+            {
                 let informant_config = InformantConfig {
                     enabled: true,
                     dry_run: false,
@@ -121,7 +124,8 @@ impl EdgeDefense {
             {
                 self.pipeline.quarantine().record_and_check(&ip_str, now_ms);
                 if let Some(ua) = user_agent {
-                    self.bot_guard.harvest_canary_probe(Some(ua), reason, now_ms);
+                    self.bot_guard
+                        .harvest_canary_probe(Some(ua), reason, now_ms);
                 }
 
                 tracing::warn!(
@@ -201,11 +205,8 @@ impl EdgeDefense {
             ShieldVerdict::Deny(reason) => {
                 // Dynamically harvest malicious User-Agent from honeyroute probes
                 if let Some(ua) = user_agent {
-                    self.bot_guard.harvest_canary_probe(
-                        Some(ua),
-                        reason.public_message(),
-                        now_ms,
-                    );
+                    self.bot_guard
+                        .harvest_canary_probe(Some(ua), reason.public_message(), now_ms);
                 }
 
                 tracing::warn!(
@@ -317,8 +318,12 @@ mod tests {
         let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
         assert!(defense.evaluate_request(ip, "GET", "/", None).is_none());
-        assert!(defense.evaluate_request(ip, "POST", "/api/v1/data", None).is_none());
-        assert!(defense.evaluate_request(ip, "GET", "/assets/main.css", None).is_none());
+        assert!(defense
+            .evaluate_request(ip, "POST", "/api/v1/data", None)
+            .is_none());
+        assert!(defense
+            .evaluate_request(ip, "GET", "/assets/main.css", None)
+            .is_none());
     }
 
     #[tokio::test]
@@ -367,7 +372,8 @@ mod tests {
         assert_eq!(res3.unwrap().status(), StatusCode::FORBIDDEN);
 
         // Robots.txt is ALWAYS allowed for any bot
-        let res_robots = defense.evaluate_request(ip, "GET", "/robots.txt", Some("Claude-SearchBot/1.0"));
+        let res_robots =
+            defense.evaluate_request(ip, "GET", "/robots.txt", Some("Claude-SearchBot/1.0"));
         assert!(res_robots.is_none());
 
         // Googlebot is allowed on public storefront
@@ -375,7 +381,8 @@ mod tests {
         assert!(res_google.is_none());
 
         // Curl allowed on installer path
-        let res_curl = defense.evaluate_request(ip, "GET", "/install/metaforge", Some("curl/8.5.0"));
+        let res_curl =
+            defense.evaluate_request(ip, "GET", "/install/metaforge", Some("curl/8.5.0"));
         assert!(res_curl.is_none());
     }
 }

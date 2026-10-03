@@ -7,7 +7,9 @@ use http_body_util::Full;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use propylea::config::{MaintenanceSettings, PropyleaConfig, RouteConfig, SecurityConfig, ServerConfig};
+use propylea::config::{
+    MaintenanceSettings, PropyleaConfig, RouteConfig, SecurityConfig, ServerConfig,
+};
 use propylea::maintenance::{MaintenanceConfig, ResourceGovernor};
 use propylea::telemetry::{TelemetryFilter, TelemetryRingBuffer};
 use propylea::tls::build_sni_tls_acceptor;
@@ -91,7 +93,6 @@ async fn test_adversarial_vulnerability_scanner_battery() {
             server_banner: "Aegis-Boundary/3.0".into(),
             hsts: true,
             frame_options: "DENY".into(),
-            ..Default::default()
         },
         maintenance: MaintenanceSettings::default(),
         routes: vec![route],
@@ -138,13 +139,21 @@ async fn test_adversarial_vulnerability_scanner_battery() {
         let res = client
             .get(format!("https://{}{}", proxy_addr, probe_path))
             .header("Host", "secure.example.com")
-            .header("User-Agent", "Mozilla/5.0 (compatible; Nmap Scripting Engine)")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (compatible; Nmap Scripting Engine)",
+            )
             .send()
             .await
             .unwrap();
 
         // Must drop with stealth 404
-        assert_eq!(res.status(), StatusCode::NOT_FOUND, "Failed on probe {}", probe_path);
+        assert_eq!(
+            res.status(),
+            StatusCode::NOT_FOUND,
+            "Failed on probe {}",
+            probe_path
+        );
         assert_eq!(
             res.headers().get("server").unwrap().to_str().unwrap(),
             "Aegis-Boundary/3.0"
@@ -160,12 +169,19 @@ async fn test_adversarial_vulnerability_scanner_battery() {
 
     // Invariant: Governor recorded every trapped threat
     assert_eq!(
-        governor.metrics().total_trapped_threats.load(Ordering::Relaxed) as usize,
+        governor
+            .metrics()
+            .total_trapped_threats
+            .load(Ordering::Relaxed) as usize,
         hostile_probes.len()
     );
 
     // Invariant: Telemetry ring buffer holds all threats with threat_trapped = true
-    let trapped = telemetry.query(&TelemetryFilter { threats_only: true, limit: 50, ..Default::default() });
+    let trapped = telemetry.query(&TelemetryFilter {
+        threats_only: true,
+        limit: 50,
+        ..Default::default()
+    });
     assert_eq!(trapped.len(), hostile_probes.len());
 }
 
@@ -241,13 +257,22 @@ async fn test_upstream_crash_and_resilience() {
     );
 
     // Invariant: Telemetry recorded 502 status
-    let records = telemetry.query(&TelemetryFilter { limit: 10, ..Default::default() });
+    let records = telemetry.query(&TelemetryFilter {
+        limit: 10,
+        ..Default::default()
+    });
     assert_eq!(records[0].status, 502);
 
     // Invariant: Active connection count decremented back to 0 once client closes keep-alive
     drop(client);
     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-    assert_eq!(governor.metrics().current_active_connections.load(Ordering::Relaxed), 0);
+    assert_eq!(
+        governor
+            .metrics()
+            .current_active_connections
+            .load(Ordering::Relaxed),
+        0
+    );
 }
 
 #[tokio::test]
@@ -309,7 +334,10 @@ async fn test_abrupt_client_disconnect_connection_drain() {
 
     // Invariant: Governor active connection count MUST be 0 (no connection leak!)
     assert_eq!(
-        governor.metrics().current_active_connections.load(Ordering::Relaxed),
+        governor
+            .metrics()
+            .current_active_connections
+            .load(Ordering::Relaxed),
         0,
         "Connection count leaked after abrupt client disconnect!"
     );
@@ -405,7 +433,10 @@ async fn test_adversarial_query_parameter_credential_scrubbing() {
     assert_eq!(res.status(), StatusCode::OK);
 
     // Invariant: Verify telemetry ring buffer did NOT record any raw secret
-    let records = telemetry.query(&TelemetryFilter { limit: 10, ..Default::default() });
+    let records = telemetry.query(&TelemetryFilter {
+        limit: 10,
+        ..Default::default()
+    });
     assert!(!records.is_empty());
     let recorded_path = &records[0].path;
 
@@ -432,7 +463,8 @@ async fn test_adversarial_acme_challenge_security_and_traversal() {
     let valid_token = "valid_acme-token-ABC_123";
     let token_file = challenge_dir.join(valid_token);
     let mut f = std::fs::File::create(&token_file).unwrap();
-    f.write_all(b"valid_acme-token-ABC_123.auth_signature_xyz").unwrap();
+    f.write_all(b"valid_acme-token-ABC_123.auth_signature_xyz")
+        .unwrap();
 
     // 2. Create an oversized allocation bomb file (5000 bytes > 4096 cap)
     let bomb_token = "oversized_token_bomb";
@@ -471,7 +503,10 @@ async fn test_adversarial_acme_challenge_security_and_traversal() {
 
     // Invariant 2: Non-alphanumeric / invalid characters are rejected with 400 Bad Request
     let res_invalid = client
-        .get(format!("http://{}/.well-known/acme-challenge/token!admin$attack", addr))
+        .get(format!(
+            "http://{}/.well-known/acme-challenge/token!admin$attack",
+            addr
+        ))
         .send()
         .await
         .unwrap();
@@ -480,7 +515,10 @@ async fn test_adversarial_acme_challenge_security_and_traversal() {
     // Invariant 3: Oversized token path is rejected with 400 Bad Request
     let huge_token = "a".repeat(200);
     let res_huge = client
-        .get(format!("http://{}/.well-known/acme-challenge/{}", addr, huge_token))
+        .get(format!(
+            "http://{}/.well-known/acme-challenge/{}",
+            addr, huge_token
+        ))
         .send()
         .await
         .unwrap();
@@ -488,7 +526,10 @@ async fn test_adversarial_acme_challenge_security_and_traversal() {
 
     // Invariant 4: Allocation bomb file (>4096 bytes) is refused with 404
     let res_bomb = client
-        .get(format!("http://{}/.well-known/acme-challenge/{}", addr, bomb_token))
+        .get(format!(
+            "http://{}/.well-known/acme-challenge/{}",
+            addr, bomb_token
+        ))
         .send()
         .await
         .unwrap();
@@ -496,7 +537,10 @@ async fn test_adversarial_acme_challenge_security_and_traversal() {
 
     // Invariant 5: Legitimate challenge token is served with 200 OK and text/plain
     let res_ok = client
-        .get(format!("http://{}/.well-known/acme-challenge/{}", addr, valid_token))
+        .get(format!(
+            "http://{}/.well-known/acme-challenge/{}",
+            addr, valid_token
+        ))
         .send()
         .await
         .unwrap();
@@ -517,20 +561,35 @@ async fn test_adversarial_canary_trap_and_dynamic_bot_harvesting() {
 
     // 1. Initial request to normal route prior to tripping canary trap
     let normal_res = defense.evaluate_request(ip, "GET", "/products", Some(hostile_ua));
-    assert!(normal_res.is_none(), "Normal route should pass prior to tripping canary");
+    assert!(
+        normal_res.is_none(),
+        "Normal route should pass prior to tripping canary"
+    );
 
     // 2. Crawler trips invisible Canary Trap Honeylink: /_sovereign/canary_trap
-    let canary_res = defense.evaluate_request(ip, "GET", "/_sovereign/canary_trap", Some(hostile_ua));
+    let canary_res =
+        defense.evaluate_request(ip, "GET", "/_sovereign/canary_trap", Some(hostile_ua));
     assert!(canary_res.is_some(), "Canary trap must intercept probe");
     let resp = canary_res.unwrap();
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND, "Canary trap must return stealth 404");
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_FOUND,
+        "Canary trap must return stealth 404"
+    );
 
     // 3. Preemptive dynamic harvesting active: ANY request with that User-Agent from ANY IP is now stealth 404'd!
     let different_ip = "203.0.113.88".parse().unwrap();
     let blocked_res = defense.evaluate_request(different_ip, "GET", "/pricing", Some(hostile_ua));
-    assert!(blocked_res.is_some(), "Harvested bot must be blocked across all IPs");
+    assert!(
+        blocked_res.is_some(),
+        "Harvested bot must be blocked across all IPs"
+    );
     let resp2 = blocked_res.unwrap();
-    assert_eq!(resp2.status(), StatusCode::NOT_FOUND, "Harvested bot must receive stealth 404 Not Found");
+    assert_eq!(
+        resp2.status(),
+        StatusCode::NOT_FOUND,
+        "Harvested bot must receive stealth 404 Not Found"
+    );
 
     // 4. Adversarial Path Evasions against Canary Trap:
     // Scanners attempting multi-slash, dot-segments, trailing slashes, or percent-encoding
@@ -538,18 +597,42 @@ async fn test_adversarial_canary_trap_and_dynamic_bot_harvesting() {
     let evasion_ua = "EvadingDarkScraper/1.0";
 
     // Evasion A: Multi-slash "//_sovereign//canary_trap"
-    let res_multi = defense.evaluate_request(evasion_ip, "GET", "//_sovereign//canary_trap", Some(evasion_ua));
-    assert!(res_multi.is_some(), "Multi-slash canary evasion must be trapped");
+    let res_multi = defense.evaluate_request(
+        evasion_ip,
+        "GET",
+        "//_sovereign//canary_trap",
+        Some(evasion_ua),
+    );
+    assert!(
+        res_multi.is_some(),
+        "Multi-slash canary evasion must be trapped"
+    );
     assert_eq!(res_multi.unwrap().status(), StatusCode::NOT_FOUND);
 
     // Evasion B: Percent-encoding "/%5fsovereign/canary_trap"
-    let res_enc = defense.evaluate_request(evasion_ip, "GET", "/%5fsovereign/canary_trap", Some(evasion_ua));
-    assert!(res_enc.is_some(), "Percent-encoded canary evasion must be trapped");
+    let res_enc = defense.evaluate_request(
+        evasion_ip,
+        "GET",
+        "/%5fsovereign/canary_trap",
+        Some(evasion_ua),
+    );
+    assert!(
+        res_enc.is_some(),
+        "Percent-encoded canary evasion must be trapped"
+    );
     assert_eq!(res_enc.unwrap().status(), StatusCode::NOT_FOUND);
 
     // Evasion C: Dot-segment "/./_sovereign/canary_trap/"
-    let res_dot = defense.evaluate_request(evasion_ip, "GET", "/./_sovereign/canary_trap/", Some(evasion_ua));
-    assert!(res_dot.is_some(), "Dot-segment canary evasion must be trapped");
+    let res_dot = defense.evaluate_request(
+        evasion_ip,
+        "GET",
+        "/./_sovereign/canary_trap/",
+        Some(evasion_ua),
+    );
+    assert!(
+        res_dot.is_some(),
+        "Dot-segment canary evasion must be trapped"
+    );
     assert_eq!(res_dot.unwrap().status(), StatusCode::NOT_FOUND);
 
     // Evasion bot was harvested during evasion attempts and must now be stealth 404'd on root
@@ -560,7 +643,11 @@ async fn test_adversarial_canary_trap_and_dynamic_bot_harvesting() {
     // 5. Commercial scrapers receive explicit RFC 9309 403 Forbidden
     let ai_res = defense.evaluate_request(different_ip, "GET", "/products", Some("ClaudeBot/1.0"));
     assert!(ai_res.is_some());
-    assert_eq!(ai_res.unwrap().status(), StatusCode::FORBIDDEN, "Commercial AI scraper must receive 403 Forbidden");
+    assert_eq!(
+        ai_res.unwrap().status(),
+        StatusCode::FORBIDDEN,
+        "Commercial AI scraper must receive 403 Forbidden"
+    );
 }
 
 #[tokio::test]
@@ -577,7 +664,10 @@ async fn test_adversarial_http_smuggling_and_framing_attacks() {
         .unwrap();
 
     let res_te_cl = guard.validate_headers(req_te_cl.headers(), req_te_cl.method());
-    assert_eq!(res_te_cl, Err(propylea::FramingViolation::ConflictingFraming));
+    assert_eq!(
+        res_te_cl,
+        Err(propylea::FramingViolation::ConflictingFraming)
+    );
 
     // 2. Attack Vector: Multiple Differing Content-Length Headers
     let mut req_multi_cl = Request::builder()
@@ -585,10 +675,15 @@ async fn test_adversarial_http_smuggling_and_framing_attacks() {
         .header("Content-Length", "42")
         .body(())
         .unwrap();
-    req_multi_cl.headers_mut().append("Content-Length", "100".parse().unwrap());
+    req_multi_cl
+        .headers_mut()
+        .append("Content-Length", "100".parse().unwrap());
 
     let res_multi = guard.validate_headers(req_multi_cl.headers(), req_multi_cl.method());
-    assert_eq!(res_multi, Err(propylea::FramingViolation::MultipleContentLengths));
+    assert_eq!(
+        res_multi,
+        Err(propylea::FramingViolation::MultipleContentLengths)
+    );
 
     // 3. Attack Vector: Allocation Bomb / Payload Exceeding Limit
     let req_bomb = Request::builder()
@@ -598,7 +693,10 @@ async fn test_adversarial_http_smuggling_and_framing_attacks() {
         .unwrap();
 
     let res_bomb = guard.validate_headers(req_bomb.headers(), req_bomb.method());
-    assert!(matches!(res_bomb, Err(propylea::FramingViolation::PayloadTooLarge { .. })));
+    assert!(matches!(
+        res_bomb,
+        Err(propylea::FramingViolation::PayloadTooLarge { .. })
+    ));
 
     // 4. Attack Vector: Untrusted Ingress Header Spoofing
     let mut req_spoof = Request::builder()
@@ -611,11 +709,21 @@ async fn test_adversarial_http_smuggling_and_framing_attacks() {
     propylea::FramingGuard::sanitize_ingress_headers(&mut req_spoof, client_ip);
 
     assert_eq!(
-        req_spoof.headers().get("X-Forwarded-For").unwrap().to_str().unwrap(),
+        req_spoof
+            .headers()
+            .get("X-Forwarded-For")
+            .unwrap()
+            .to_str()
+            .unwrap(),
         "198.51.100.88"
     );
     assert_eq!(
-        req_spoof.headers().get("X-Real-IP").unwrap().to_str().unwrap(),
+        req_spoof
+            .headers()
+            .get("X-Real-IP")
+            .unwrap()
+            .to_str()
+            .unwrap(),
         "198.51.100.88"
     );
     assert!(req_spoof.headers().get("CF-Connecting-IP").is_none());
@@ -646,9 +754,16 @@ async fn test_adversarial_tls_fingerprint_spoofed_browser_detection() {
         Some(&python_tls_profile),
     );
 
-    assert!(spoof_res.is_some(), "TLS spoofing attack must be intercepted");
+    assert!(
+        spoof_res.is_some(),
+        "TLS spoofing attack must be intercepted"
+    );
     let resp = spoof_res.unwrap();
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND, "Spoofed browser must receive stealth 404");
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_FOUND,
+        "Spoofed browser must receive stealth 404"
+    );
 
     // 2. Genuine Chrome Client: Has GREASE and h2
     let real_chrome_tls_profile = propylea::ClientTlsProfile {
@@ -667,7 +782,10 @@ async fn test_adversarial_tls_fingerprint_spoofed_browser_detection() {
         Some(&real_chrome_tls_profile),
     );
 
-    assert!(genuine_res.is_none(), "Genuine Chrome client with GREASE must pass edge defense cleanly");
+    assert!(
+        genuine_res.is_none(),
+        "Genuine Chrome client with GREASE must pass edge defense cleanly"
+    );
 
     // 3. Search Engine Spider (Googlebot): Allowed even without GREASE
     let googlebot_ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
@@ -679,7 +797,8 @@ async fn test_adversarial_tls_fingerprint_spoofed_browser_detection() {
         Some(&python_tls_profile),
     );
 
-    assert!(googlebot_res.is_none(), "Googlebot must not be falsely flagged as a spoofing attack");
+    assert!(
+        googlebot_res.is_none(),
+        "Googlebot must not be falsely flagged as a spoofing attack"
+    );
 }
-
-

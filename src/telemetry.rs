@@ -135,7 +135,9 @@ pub fn sanitize_query_string(raw_query: &str) -> String {
     if raw_query.is_empty() {
         return String::new();
     }
-    let sensitive_keys = ["token", "key", "secret", "password", "auth", "code", "pin", "jwt"];
+    let sensitive_keys = [
+        "token", "key", "secret", "password", "auth", "code", "pin", "jwt",
+    ];
     raw_query
         .split('&')
         .map(|pair| {
@@ -184,7 +186,10 @@ mod tests {
         }
 
         assert_eq!(buffer.total_records(), 5);
-        let records = buffer.query(&TelemetryFilter { limit: 10, ..Default::default() });
+        let records = buffer.query(&TelemetryFilter {
+            limit: 10,
+            ..Default::default()
+        });
         assert_eq!(records.len(), 5);
         assert_eq!(records[0].path, "/path/9"); // Most recent first
     }
@@ -217,7 +222,10 @@ mod tests {
             user_agent: None,
         });
 
-        let threats = buffer.query(&TelemetryFilter { threats_only: true, ..Default::default() });
+        let threats = buffer.query(&TelemetryFilter {
+            threats_only: true,
+            ..Default::default()
+        });
         assert_eq!(threats.len(), 1);
         assert_eq!(threats[0].path, "/.env");
     }
@@ -226,6 +234,9 @@ mod tests {
     fn test_sensitive_query_redaction() {
         let query = "user=rick&token=secret123&action=view&api_key=sk_test_456";
         let sanitized = sanitize_query_string(query);
-        assert_eq!(sanitized, "user=rick&token=[REDACTED]&action=view&api_key=[REDACTED]");
+        assert_eq!(
+            sanitized,
+            "user=rick&token=[REDACTED]&action=view&api_key=[REDACTED]"
+        );
     }
 }

@@ -167,28 +167,43 @@ pub struct RouteConfig {
 impl PropyleaConfig {
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
         let p = path.as_ref();
-        let content = std::fs::read_to_string(p).map_err(|e| ConfigError::Io(p.to_path_buf(), e))?;
+        let content =
+            std::fs::read_to_string(p).map_err(|e| ConfigError::Io(p.to_path_buf(), e))?;
         Self::from_str(&content)
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(toml_str: &str) -> Result<Self, ConfigError> {
-        let config: PropyleaConfig = toml::from_str(toml_str)?;
-        config.validate()?;
-        Ok(config)
+        <Self as std::str::FromStr>::from_str(toml_str)
     }
 
     pub fn validate(&self) -> Result<(), ConfigError> {
         if self.routes.is_empty() {
-            return Err(ConfigError::Validation("At least one [[routes]] entry must be defined".into()));
+            return Err(ConfigError::Validation(
+                "At least one [[routes]] entry must be defined".into(),
+            ));
         }
 
         for (i, route) in self.routes.iter().enumerate() {
             if route.domains.is_empty() {
-                return Err(ConfigError::Validation(format!("Route[{}] has no domains configured", i)));
+                return Err(ConfigError::Validation(format!(
+                    "Route[{}] has no domains configured",
+                    i
+                )));
             }
         }
 
         Ok(())
+    }
+}
+
+impl std::str::FromStr for PropyleaConfig {
+    type Err = ConfigError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let config: PropyleaConfig = toml::from_str(s)?;
+        config.validate()?;
+        Ok(config)
     }
 }
 
@@ -219,7 +234,10 @@ mod tests {
         assert_eq!(config.server.http_bind.port(), 8080);
         assert_eq!(config.server.https_bind.port(), 8443);
         assert_eq!(config.routes.len(), 1);
-        assert_eq!(config.routes[0].domains, vec!["example.com", "www.example.com"]);
+        assert_eq!(
+            config.routes[0].domains,
+            vec!["example.com", "www.example.com"]
+        );
         assert_eq!(config.routes[0].upstream.port(), 3000);
         assert!(config.routes[0].websocket);
     }

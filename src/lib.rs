@@ -23,7 +23,6 @@ pub use acme::{try_serve_acme_challenge, ACME_CHALLENGE_PREFIX};
 pub use config::{ConfigError, MaintenanceSettings, PropyleaConfig, RouteConfig, SecurityConfig};
 pub use defense::EdgeDefense;
 pub use framing_guard::{FramingGuard, FramingViolation};
-pub use tls_fingerprint::{ClientTlsProfile, UserAgentCoherenceVerdict};
 pub use http_redirect::{run_http_redirect_listener, run_http_redirect_server};
 pub use maintenance::{GovernorMetrics, MaintenanceConfig, ResourceGovernor};
 pub use proxy::{
@@ -35,4 +34,7 @@ pub use telemetry::{
     current_time_ms, sanitize_query_string, ExecutionTimer, TelemetryFilter, TelemetryRecord,
     TelemetryRingBuffer,
 };
-pub use tls::{build_sni_tls_acceptor, load_certs, load_private_key, SovereignSniResolver, TlsError};
+pub use tls::{
+    build_sni_tls_acceptor, load_certs, load_private_key, SovereignSniResolver, TlsError,
+};
+pub use tls_fingerprint::{ClientTlsProfile, UserAgentCoherenceVerdict};

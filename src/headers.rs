@@ -98,10 +98,7 @@ mod tests {
 
     #[test]
     fn test_downstream_security_hardening() {
-        let mut res = Response::builder()
-            .status(StatusCode::OK)
-            .body(())
-            .unwrap();
+        let mut res = Response::builder().status(StatusCode::OK).body(()).unwrap();
 
         let security = SecurityConfig {
             server_banner: "Custom-Banner/1.0".to_string(),
@@ -115,6 +112,9 @@ mod tests {
         assert_eq!(res.headers().get(SERVER).unwrap(), "Custom-Banner/1.0");
         assert!(res.headers().contains_key(STRICT_TRANSPORT_SECURITY));
         assert_eq!(res.headers().get(X_FRAME_OPTIONS).unwrap(), "DENY");
-        assert_eq!(res.headers().get(X_CONTENT_TYPE_OPTIONS).unwrap(), "nosniff");
+        assert_eq!(
+            res.headers().get(X_CONTENT_TYPE_OPTIONS).unwrap(),
+            "nosniff"
+        );
     }
 }

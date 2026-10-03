@@ -74,7 +74,11 @@ impl FramingGuard {
 
     #[inline]
     pub fn check_header_value_bytes(name: &str, bytes: &[u8]) -> Result<(), FramingViolation> {
-        if bytes.contains(&0) || bytes.contains(&b'\r') || bytes.contains(&b'\n') || bytes.contains(&0x7f) {
+        if bytes.contains(&0)
+            || bytes.contains(&b'\r')
+            || bytes.contains(&b'\n')
+            || bytes.contains(&0x7f)
+        {
             return Err(FramingViolation::IllegalHeaderCharacter(name.to_string()));
         }
         Ok(())
@@ -83,7 +87,11 @@ impl FramingGuard {
     /// Evaluates headers for protocol framing compliance, smuggling signatures,
     /// and payload boundary limits. Executes in sub-microsecond time.
     #[inline]
-    pub fn validate_headers(&self, headers: &HeaderMap, method: &Method) -> Result<(), FramingViolation> {
+    pub fn validate_headers(
+        &self,
+        headers: &HeaderMap,
+        method: &Method,
+    ) -> Result<(), FramingViolation> {
         let has_cl = headers.contains_key(CONTENT_LENGTH);
         let has_te = headers.contains_key(TRANSFER_ENCODING);
 
@@ -145,12 +153,16 @@ impl FramingGuard {
         if has_te {
             for te in headers.get_all(TRANSFER_ENCODING) {
                 let te_str = te.to_str().map_err(|_| {
-                    FramingViolation::UnsupportedTransferEncoding("Non-ASCII Transfer-Encoding".into())
+                    FramingViolation::UnsupportedTransferEncoding(
+                        "Non-ASCII Transfer-Encoding".into(),
+                    )
                 })?;
                 let lower = te_str.trim().to_ascii_lowercase();
                 // Under HTTP/1.1, the only valid transfer-encoding for request bodies to reverse proxy is 'chunked'
                 if !lower.ends_with("chunked") {
-                    return Err(FramingViolation::UnsupportedTransferEncoding(te_str.to_string()));
+                    return Err(FramingViolation::UnsupportedTransferEncoding(
+                        te_str.to_string(),
+                    ));
                 }
             }
         }
@@ -166,9 +178,10 @@ impl FramingGuard {
                 if let Ok(len) = cl_val.trim().parse::<u64>() {
                     if len > 0 {
                         // Warn/reject GET/HEAD with payload length
-                        return Err(FramingViolation::MalformedContentLength(
-                            format!("GET/HEAD method carries Content-Length > 0 ({} bytes)", len)
-                        ));
+                        return Err(FramingViolation::MalformedContentLength(format!(
+                            "GET/HEAD method carries Content-Length > 0 ({} bytes)",
+                            len
+                        )));
                     }
                 }
             }
@@ -258,16 +271,21 @@ mod tests {
         let res = FramingGuard::check_header_value_bytes("X-Malicious", b"admin\0spoof");
         assert_eq!(
             res,
-            Err(FramingViolation::IllegalHeaderCharacter("X-Malicious".into()))
+            Err(FramingViolation::IllegalHeaderCharacter(
+                "X-Malicious".into()
+            ))
         );
 
         let res_del = FramingGuard::check_header_value_bytes("X-Malicious", b"admin\x7fspoof");
         assert_eq!(
             res_del,
-            Err(FramingViolation::IllegalHeaderCharacter("X-Malicious".into()))
+            Err(FramingViolation::IllegalHeaderCharacter(
+                "X-Malicious".into()
+            ))
         );
 
-        let res_clean = FramingGuard::check_header_value_bytes("X-Clean", b"admin-standard-token_123");
+        let res_clean =
+            FramingGuard::check_header_value_bytes("X-Clean", b"admin-standard-token_123");
         assert!(res_clean.is_ok());
     }
 
@@ -307,7 +325,10 @@ mod tests {
         headers.insert(CONTENT_LENGTH, HeaderValue::from_static("50"));
 
         let res = guard.validate_headers(&headers, &Method::GET);
-        assert!(matches!(res, Err(FramingViolation::MalformedContentLength(_))));
+        assert!(matches!(
+            res,
+            Err(FramingViolation::MalformedContentLength(_))
+        ));
     }
 
     #[test]
@@ -322,7 +343,11 @@ mod tests {
         FramingGuard::sanitize_ingress_headers(&mut req, client_ip);
 
         assert_eq!(
-            req.headers().get("X-Forwarded-For").unwrap().to_str().unwrap(),
+            req.headers()
+                .get("X-Forwarded-For")
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "198.51.100.99"
         );
         assert_eq!(
@@ -330,7 +355,11 @@ mod tests {
             "198.51.100.99"
         );
         assert_eq!(
-            req.headers().get("X-Forwarded-Proto").unwrap().to_str().unwrap(),
+            req.headers()
+                .get("X-Forwarded-Proto")
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "https"
         );
     }

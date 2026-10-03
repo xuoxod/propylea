@@ -7,7 +7,9 @@ use http_body_util::Full;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use propylea::config::{MaintenanceSettings, PropyleaConfig, RouteConfig, SecurityConfig, ServerConfig};
+use propylea::config::{
+    MaintenanceSettings, PropyleaConfig, RouteConfig, SecurityConfig, ServerConfig,
+};
 use propylea::maintenance::{MaintenanceConfig, ResourceGovernor};
 use propylea::telemetry::{TelemetryFilter, TelemetryRingBuffer};
 use propylea::tls::build_sni_tls_acceptor;
@@ -36,7 +38,8 @@ async fn test_http_to_https_redirect_with_query_preservation() {
     let addr = listener.local_addr().unwrap();
 
     tokio::spawn(async move {
-        let _ = propylea::run_http_redirect_listener(listener, SecurityConfig::default(), None).await;
+        let _ =
+            propylea::run_http_redirect_listener(listener, SecurityConfig::default(), None).await;
     });
 
     let client = reqwest::Client::builder()
@@ -45,7 +48,10 @@ async fn test_http_to_https_redirect_with_query_preservation() {
         .unwrap();
 
     let res = client
-        .get(format!("http://{}/v1/checkout?sku=9988&discount=SAVE20", addr))
+        .get(format!(
+            "http://{}/v1/checkout?sku=9988&discount=SAVE20",
+            addr
+        ))
         .header("Host", "store.example.com")
         .send()
         .await
@@ -126,7 +132,6 @@ async fn test_https_reverse_proxy_end_to_end_and_defense_trap() {
             server_banner: "Test-Propylea-Edge".into(),
             hsts: true,
             frame_options: "DENY".into(),
-            ..Default::default()
         },
         maintenance: MaintenanceSettings::default(),
         routes: vec![route],
@@ -177,7 +182,10 @@ async fn test_https_reverse_proxy_end_to_end_and_defense_trap() {
     assert_eq!(body, "Hello from Upstream!");
 
     // Verify Telemetry captured the request with query sanitization
-    let records = telemetry.query(&TelemetryFilter { limit: 10, ..Default::default() });
+    let records = telemetry.query(&TelemetryFilter {
+        limit: 10,
+        ..Default::default()
+    });
     assert!(!records.is_empty());
     assert_eq!(records[0].status, 200);
     assert_eq!(records[0].path, "/index.html?token=[REDACTED]");
@@ -197,9 +205,18 @@ async fn test_https_reverse_proxy_end_to_end_and_defense_trap() {
     assert_eq!(probe_body, "404 Not Found\n");
 
     // Governor and Telemetry verification
-    let threats = telemetry.query(&TelemetryFilter { threats_only: true, ..Default::default() });
+    let threats = telemetry.query(&TelemetryFilter {
+        threats_only: true,
+        ..Default::default()
+    });
     assert_eq!(threats.len(), 1);
     assert_eq!(threats[0].path, "/.env");
     assert!(threats[0].threat_trapped);
-    assert_eq!(governor.metrics().total_trapped_threats.load(std::sync::atomic::Ordering::Relaxed), 1);
+    assert_eq!(
+        governor
+            .metrics()
+            .total_trapped_threats
+            .load(std::sync::atomic::Ordering::Relaxed),
+        1
+    );
 }

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  test:
+    name: Test & Verify
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.rust }}-
+
+      - name: Check code formatting
+        run: cargo fmt -- --check
+
+      - name: Clippy linter (all features)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run unit and integration tests (all features)
+        run: cargo test --all-targets --all-features --verbose

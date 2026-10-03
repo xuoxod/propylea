@@ -13,7 +13,7 @@ pub fn is_grease_u16(val: u16) -> bool {
 }
 
 /// Extracted TLS ClientHello profile
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ClientTlsProfile {
     /// True if client sent RFC 8701 GREASE cipher suites or extensions (Standard in Chrome/Edge/Safari/WebKit)
     pub has_grease: bool,
@@ -27,18 +27,6 @@ pub struct ClientTlsProfile {
     pub primary_ciphers: Vec<u16>,
 }
 
-impl Default for ClientTlsProfile {
-    fn default() -> Self {
-        Self {
-            has_grease: false,
-            cipher_count: 0,
-            offers_h2: false,
-            has_sni: false,
-            primary_ciphers: Vec::new(),
-        }
-    }
-}
-
 /// Result of cross-referencing TLS profile with claimed HTTP User-Agent
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UserAgentCoherenceVerdict {
@@ -46,14 +34,13 @@ pub enum UserAgentCoherenceVerdict {
     Coherent,
     /// Hostile spoofing: User-Agent claims to be a modern major browser (Chrome/Edge/Safari),
     /// but TLS ClientHello signature is characteristic of Python, Go, or raw CLI scripts.
-    Spoofed {
-        reason: &'static str,
-    },
+    Spoofed { reason: &'static str },
 }
 
 impl ClientTlsProfile {
     /// Parse a raw TLS ClientHello from a peeked byte buffer (e.g. from TcpStream::peek).
     /// Safe, zero-allocation parser operating in $<200\text{ns}$.
+    #[allow(clippy::chunks_exact_to_as_chunks)]
     pub fn parse_client_hello(buf: &[u8]) -> Option<Self> {
         // Need at least TLS record header (5 bytes) + handshake header (4 bytes) + client hello min
         if buf.len() < 43 {
@@ -168,14 +155,19 @@ impl ClientTlsProfile {
     /// Evaluates whether the claimed HTTP User-Agent is coherent with the observed TLS profile.
     ///
     /// Execution time: $< 50\text{ns}$ with zero heap allocation.
-    pub fn verify_user_agent_coherence(&self, user_agent: Option<&str>) -> UserAgentCoherenceVerdict {
+    pub fn verify_user_agent_coherence(
+        &self,
+        user_agent: Option<&str>,
+    ) -> UserAgentCoherenceVerdict {
         let Some(ua) = user_agent else {
             return UserAgentCoherenceVerdict::Coherent;
         };
 
         let ua_clean = ua.trim();
         let is_claiming_chrome = ua_clean.contains("Chrome/") || ua_clean.contains("CriOS/");
-        let is_claiming_safari = ua_clean.contains("Safari/") && !ua_clean.contains("Chrome/") && ua_clean.contains("Version/");
+        let is_claiming_safari = ua_clean.contains("Safari/")
+            && !ua_clean.contains("Chrome/")
+            && ua_clean.contains("Version/");
         let is_claiming_edge = ua_clean.contains("Edg/") || ua_clean.contains("Edge/");
 
         // Legitimate search engines often include Chrome in their token (e.g. Googlebot)
@@ -272,7 +264,8 @@ mod tests {
             primary_ciphers: vec![0x1301, 0x1302],
         };
 
-        let googlebot_ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+        let googlebot_ua =
+            "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
         let verdict = bot_profile.verify_user_agent_coherence(Some(googlebot_ua));
 
         assert_eq!(verdict, UserAgentCoherenceVerdict::Coherent);

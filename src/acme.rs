@@ -37,15 +37,21 @@ pub async fn try_serve_acme_challenge(
     // RFC 8555 Section 8.3 defines tokens as URL-safe base64 characters.
     if token.is_empty()
         || token.len() > 128
-        || !token.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        || !token
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
-        let mut res = Response::new(Full::new(Bytes::from_static(b"Invalid ACME challenge token\n")));
+        let mut res = Response::new(Full::new(Bytes::from_static(
+            b"Invalid ACME challenge token\n",
+        )));
         *res.status_mut() = StatusCode::BAD_REQUEST;
         return Some(res);
     }
 
     let Some(root) = webroot else {
-        let mut res = Response::new(Full::new(Bytes::from_static(b"ACME challenge directory not configured\n")));
+        let mut res = Response::new(Full::new(Bytes::from_static(
+            b"ACME challenge directory not configured\n",
+        )));
         *res.status_mut() = StatusCode::NOT_FOUND;
         return Some(res);
     };
@@ -61,7 +67,9 @@ pub async fn try_serve_acme_challenge(
     } else if candidate_flat.is_file() {
         candidate_flat
     } else {
-        let mut res = Response::new(Full::new(Bytes::from_static(b"ACME challenge token not found\n")));
+        let mut res = Response::new(Full::new(Bytes::from_static(
+            b"ACME challenge token not found\n",
+        )));
         *res.status_mut() = StatusCode::NOT_FOUND;
         return Some(res);
     };
@@ -81,14 +89,18 @@ pub async fn try_serve_acme_challenge(
                     Some(res)
                 }
                 Err(_) => {
-                    let mut res = Response::new(Full::new(Bytes::from_static(b"Failed to read challenge token\n")));
+                    let mut res = Response::new(Full::new(Bytes::from_static(
+                        b"Failed to read challenge token\n",
+                    )));
                     *res.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
                     Some(res)
                 }
             }
         }
         _ => {
-            let mut res = Response::new(Full::new(Bytes::from_static(b"ACME challenge token not found\n")));
+            let mut res = Response::new(Full::new(Bytes::from_static(
+                b"ACME challenge token not found\n",
+            )));
             *res.status_mut() = StatusCode::NOT_FOUND;
             Some(res)
         }
@@ -113,7 +125,9 @@ mod tests {
         write!(file, "test-token-abc-123_XYZ.dummy_thumbprint").unwrap();
 
         let path = format!("{}{}", ACME_CHALLENGE_PREFIX, token);
-        let res = try_serve_acme_challenge(&path, Some(dir.path())).await.unwrap();
+        let res = try_serve_acme_challenge(&path, Some(dir.path()))
+            .await
+            .unwrap();
 
         assert_eq!(res.status(), StatusCode::OK);
         assert_eq!(
@@ -136,21 +150,16 @@ mod tests {
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
         // 2. Slashes in token
-        let res = try_serve_acme_challenge(
-            "/.well-known/acme-challenge/sub/token",
-            Some(dir.path()),
-        )
-        .await
-        .unwrap();
+        let res =
+            try_serve_acme_challenge("/.well-known/acme-challenge/sub/token", Some(dir.path()))
+                .await
+                .unwrap();
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
         // 3. Empty token
-        let res = try_serve_acme_challenge(
-            "/.well-known/acme-challenge/",
-            Some(dir.path()),
-        )
-        .await
-        .unwrap();
+        let res = try_serve_acme_challenge("/.well-known/acme-challenge/", Some(dir.path()))
+            .await
+            .unwrap();
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
         // 4. Token exceeding length limit

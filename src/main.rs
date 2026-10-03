@@ -65,7 +65,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let (config_path, syntax_only) = match &cli.command {
         Some(Commands::Serve { config }) => (config.clone(), false),
-        Some(Commands::Check { config, syntax_only }) => (config.clone(), *syntax_only),
+        Some(Commands::Check {
+            config,
+            syntax_only,
+        }) => (config.clone(), *syntax_only),
         None => (cli.config, false),
     };
 
@@ -80,16 +83,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn run_check(path: PathBuf, syntax_only: bool) -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", BANNER);
-    info!("🔍 Validating Propylea configuration at '{}'...", path.display());
+    info!(
+        "🔍 Validating Propylea configuration at '{}'...",
+        path.display()
+    );
 
     let config = PropyleaConfig::load_from_file(&path)?;
 
     info!("  • HTTP Redirect Bind:  {}", config.server.http_bind);
     info!("  • HTTPS Proxy Bind:    {}", config.server.https_bind);
-    info!("  • Active Defense:      {}", if config.security.enable_defense { "Enabled" } else { "Disabled" });
-    info!("  • Memory Vacuum:       {}", if config.maintenance.memory_vacuum { "Active (malloc_trim)" } else { "Disabled" });
-    info!("  • Hygiene Interval:    {}s", config.maintenance.hygiene_interval_secs);
-    info!("  • Verifying {} configured route(s)...", config.routes.len());
+    info!(
+        "  • Active Defense:      {}",
+        if config.security.enable_defense {
+            "Enabled"
+        } else {
+            "Disabled"
+        }
+    );
+    info!(
+        "  • Memory Vacuum:       {}",
+        if config.maintenance.memory_vacuum {
+            "Active (malloc_trim)"
+        } else {
+            "Disabled"
+        }
+    );
+    info!(
+        "  • Hygiene Interval:    {}s",
+        config.maintenance.hygiene_interval_secs
+    );
+    info!(
+        "  • Verifying {} configured route(s)...",
+        config.routes.len()
+    );
 
     for (i, route) in config.routes.iter().enumerate() {
         if syntax_only {
@@ -102,12 +128,10 @@ fn run_check(path: PathBuf, syntax_only: bool) -> Result<(), Box<dyn std::error:
                 route.key.display()
             );
         } else {
-            let certs = load_certs(&route.cert).map_err(|e| {
-                format!("Route[{}] ({:?}): cert error: {}", i, route.domains, e)
-            })?;
-            let _key = load_private_key(&route.key).map_err(|e| {
-                format!("Route[{}] ({:?}): key error: {}", i, route.domains, e)
-            })?;
+            let certs = load_certs(&route.cert)
+                .map_err(|e| format!("Route[{}] ({:?}): cert error: {}", i, route.domains, e))?;
+            let _key = load_private_key(&route.key)
+                .map_err(|e| format!("Route[{}] ({:?}): key error: {}", i, route.domains, e))?;
             info!(
                 "    [{}] Domains: {:?} -> {} (TLS certs verified: {} certificates loaded)",
                 i,
@@ -124,7 +148,10 @@ fn run_check(path: PathBuf, syntax_only: bool) -> Result<(), Box<dyn std::error:
 
 async fn run_serve(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", BANNER);
-    info!("🚀 Initializing Propylea Sovereign Reverse Proxy v{}...", env!("CARGO_PKG_VERSION"));
+    info!(
+        "🚀 Initializing Propylea Sovereign Reverse Proxy v{}...",
+        env!("CARGO_PKG_VERSION")
+    );
 
     let config = match PropyleaConfig::load_from_file(&path) {
         Ok(c) => c,
@@ -164,7 +191,8 @@ async fn run_serve(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let sec_http = config.security.clone();
     let acme_webroot = config.server.acme_webroot.clone();
     tokio::spawn(async move {
-        if let Err(e) = propylea::run_http_redirect_server(http_bind, sec_http, acme_webroot).await {
+        if let Err(e) = propylea::run_http_redirect_server(http_bind, sec_http, acme_webroot).await
+        {
             error!("HTTP redirect server failed on {}: {}", http_bind, e);
         }
     });
@@ -190,7 +218,10 @@ async fn run_serve(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     });
 
     info!("🛡️  Propylea is running and armed with sovereign edge defense.");
-    info!("    Ingress Ports: HTTP [{}] -> HTTPS [{}]", http_bind, https_bind);
+    info!(
+        "    Ingress Ports: HTTP [{}] -> HTTPS [{}]",
+        http_bind, https_bind
+    );
 
     // Wait for graceful shutdown signal (SIGINT / SIGTERM)
     tokio::signal::ctrl_c().await?;

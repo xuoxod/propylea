@@ -58,7 +58,10 @@ pub async fn run_http_redirect_listener(
                     let raw_path = req.uri().path();
 
                     // 1. Intercept ACME HTTP-01 challenges directly
-                    if let Some(mut acme_res) = try_serve_acme_challenge(raw_path, webroot.as_deref().map(|p| p.as_path())).await {
+                    if let Some(mut acme_res) =
+                        try_serve_acme_challenge(raw_path, webroot.as_deref().map(|p| p.as_path()))
+                            .await
+                    {
                         inject_response_security_headers(&mut acme_res, &sec);
                         return Ok::<_, hyper::Error>(acme_res);
                     }
@@ -150,7 +153,8 @@ mod tests {
 
         let webroot = dir.path().to_path_buf();
         tokio::spawn(async move {
-            let _ = run_http_redirect_listener(listener, SecurityConfig::default(), Some(webroot)).await;
+            let _ = run_http_redirect_listener(listener, SecurityConfig::default(), Some(webroot))
+                .await;
         });
 
         let client = reqwest::Client::builder()
@@ -160,7 +164,10 @@ mod tests {
 
         // 1. Verify ACME challenge returns 200 OK directly on port 80 without redirecting
         let res = client
-            .get(format!("http://{}/.well-known/acme-challenge/{}", addr, token_name))
+            .get(format!(
+                "http://{}/.well-known/acme-challenge/{}",
+                addr, token_name
+            ))
             .header("Host", "rmediatech.com")
             .send()
             .await
@@ -183,7 +190,12 @@ mod tests {
             .unwrap();
 
         assert_eq!(res_redir.status(), StatusCode::MOVED_PERMANENTLY);
-        let loc = res_redir.headers().get("location").unwrap().to_str().unwrap();
+        let loc = res_redir
+            .headers()
+            .get("location")
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert_eq!(loc, "https://rmediatech.com/about");
     }
 }

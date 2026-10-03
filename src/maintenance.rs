@@ -64,24 +64,39 @@ impl ResourceGovernor {
 
     /// Record connection start
     pub fn register_connection(&self) {
-        self.metrics.total_connections_served.fetch_add(1, Ordering::Relaxed);
-        self.metrics.current_active_connections.fetch_add(1, Ordering::Relaxed);
+        self.metrics
+            .total_connections_served
+            .fetch_add(1, Ordering::Relaxed);
+        self.metrics
+            .current_active_connections
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record connection close
     pub fn deregister_connection(&self) {
-        self.metrics.current_active_connections.fetch_sub(1, Ordering::Relaxed);
+        self.metrics
+            .current_active_connections
+            .fetch_sub(1, Ordering::Relaxed);
     }
 
     /// Record trapped threat
     pub fn record_threat(&self) {
-        self.metrics.total_trapped_threats.fetch_add(1, Ordering::Relaxed);
+        self.metrics
+            .total_trapped_threats
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     /// Run a single deterministic maintenance hygiene pass
     pub fn run_hygiene_pass(&self) {
-        let pass = self.metrics.total_hygiene_passes.fetch_add(1, Ordering::SeqCst) + 1;
-        debug!(pass = pass, "🧹 [GOVERNOR] Executing autonomous resource hygiene pass");
+        let pass = self
+            .metrics
+            .total_hygiene_passes
+            .fetch_add(1, Ordering::SeqCst)
+            + 1;
+        debug!(
+            pass = pass,
+            "🧹 [GOVERNOR] Executing autonomous resource hygiene pass"
+        );
 
         #[cfg(target_os = "linux")]
         if self.config.memory_vacuum {
@@ -118,22 +133,64 @@ mod tests {
     #[test]
     fn test_resource_governor_connection_tracking() {
         let governor = ResourceGovernor::new(MaintenanceConfig::default());
-        assert_eq!(governor.metrics().current_active_connections.load(Ordering::Relaxed), 0);
-        assert_eq!(governor.metrics().total_connections_served.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            governor
+                .metrics()
+                .current_active_connections
+                .load(Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            governor
+                .metrics()
+                .total_connections_served
+                .load(Ordering::Relaxed),
+            0
+        );
 
         governor.register_connection();
-        assert_eq!(governor.metrics().current_active_connections.load(Ordering::Relaxed), 1);
-        assert_eq!(governor.metrics().total_connections_served.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            governor
+                .metrics()
+                .current_active_connections
+                .load(Ordering::Relaxed),
+            1
+        );
+        assert_eq!(
+            governor
+                .metrics()
+                .total_connections_served
+                .load(Ordering::Relaxed),
+            1
+        );
 
         governor.deregister_connection();
-        assert_eq!(governor.metrics().current_active_connections.load(Ordering::Relaxed), 0);
-        assert_eq!(governor.metrics().total_connections_served.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            governor
+                .metrics()
+                .current_active_connections
+                .load(Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            governor
+                .metrics()
+                .total_connections_served
+                .load(Ordering::Relaxed),
+            1
+        );
     }
 
     #[test]
     fn test_hygiene_pass_increments_count() {
         let governor = ResourceGovernor::new(MaintenanceConfig::default());
         governor.run_hygiene_pass();
-        assert_eq!(governor.metrics().total_hygiene_passes.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            governor
+                .metrics()
+                .total_hygiene_passes
+                .load(Ordering::Relaxed),
+            1
+        );
     }
 }
