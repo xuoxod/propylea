@@ -45,6 +45,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Checkout phylax dependency
+        uses: actions/checkout@v4
+        with:
+          repository: xuoxod/phylax
+          path: ../phylax
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:

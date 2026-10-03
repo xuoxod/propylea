@@ -20,6 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout phylax dependency
+        uses: actions/checkout@v4
+        with:
+          repository: xuoxod/phylax
+          path: ../phylax
+
       - name: Install Rust ${{ matrix.rust }}
         uses: dtolnay/rust-toolchain@master
         with:
