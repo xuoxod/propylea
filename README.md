@@ -46,6 +46,9 @@ Modern web infrastructure is plagued by two persistent problems:
 [ Internet Client / Scanner ]
                │
                ▼
+   🛡️ Ring 0: AEGIS (L3/L4 DNS)   ➔ Sovereign microsecond authoritative DNS & defensive sinkhole.
+               │                       Intercepts botnet C2, blocks trackers, defuses RRL floods.
+               ▼
    🌊 Ring 1: BASTION (L4 Firewall) ➔ Drops DDoS & packet floods in microseconds via eBPF/XDP.
                │
                ▼
@@ -76,6 +79,7 @@ Modern web infrastructure is plagued by two persistent problems:
 
 | Crate | Sovereign Role | Layer | Primary Responsibility | Replaces |
 | :--- | :--- | :---: | :--- | :--- |
+| **`aegis`** | Authoritative & Sinkhole DNS | **L3/L4** | Microsecond Radix DNS, threat sinkholing, BCP 153 RRL | BIND9, Unbound, Pi-hole |
 | **`bastion`** | Microsecond IP Firewall | **L4** | Bitwise Radix Trie packet filtering & SYN defense | `iptables`, `ufw` |
 | **`propylea`** | L7 Gateway & Reverse Proxy | **L7** | Multi-domain TLS, WebSocket tunneling, `< 15MB` RAM | **`caddy`**, **`nginx`**, `traefik` |
 | **`phylax`** | 13-Layer Perimeter WAF | **L7 Library**| `< 15ns` honeypot trie, stealth 404s, AbuseIPDB reporting | Cloudflare WAF, ModSecurity |
