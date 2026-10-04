@@ -19,7 +19,8 @@
   Sovereign L7 Reverse Proxy & Perimeter Defense Gate
 ```
 
-> In ancient classical Greece, the **Propylaea** (*Προπύλαια*) stood as the monumental fortified gateway to the Acropolis of Athens—a majestic boundary shielding the sacred citadel within while welcoming legitimate citizens. **Propylea** serves the exact same role for your modern web architecture: a sovereign, ultra-low-memory L7 reverse proxy, multi-domain SNI TLS multiplexer, and perimeter defense gateway written in 100% pure Rust.
+> In ancient classical Greece, the **Propylaea** (*Προπύλαια*) stood as the monumental fortified gateway to the Acropolis of Athens—a majestic boundary shielding the sacred citadel within while welcoming legitimate citizens. **Propylea** serves the exact same role for your modern web architecture: a sovereign, ultra-low-memory L7 reverse proxy, multi-domain SNI TLS multiplexer, and perimeter defense gateway written in 100% pure Rust.  
+> 🏰 *"From the wire to the RAM / All them botnets crash and slam."*
 
 ---
 
